@@ -16,7 +16,10 @@ namespace HastPiControl.Models
     using System.Net.Http;
     using System.Threading.Tasks;
 
+    using Windows.Devices.AllJoyn;
     using Windows.UI.Xaml;
+
+    using com.hastarin.GarageDoor;
 
     using GalaSoft.MvvmLight;
 
@@ -25,13 +28,30 @@ namespace HastPiControl.Models
     /// <summary>
     /// Class PiFaceDigital2ViewModel.
     /// </summary>
-    public class PiFaceDigital2ViewModel : ViewModelBase
+    public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
     {
+        /// <summary>
+        /// Name to use for the input for the main door reed switch
+        /// </summary>
+        public static string GarageDoorOpen = "GarageDoorOpen";
+
+        /// <summary>
+        /// Name to use for the input for the door partial open reed switch
+        /// </summary>
+        public static string GarageDoorPartialOpen = "GarageDoorPartialOpen";
+
+        /// <summary>
+        /// Name to use for the output controlling the push button relay
+        /// </summary>
+        public static string GarageDoorPushButtonRelay = "GarageDoorPushButton";
+
         private ObservableCollection<GpioPinViewModel> inputs = new ObservableCollection<GpioPinViewModel>();
 
         private ObservableCollection<GpioPinViewModel> outputs = new ObservableCollection<GpioPinViewModel>();
 
         private DispatcherTimer timer;
+
+        private static GarageDoorProducer doorProducer;
 
         /// <summary>
         /// Initializes a new instance of the ViewModelBase class.
@@ -42,23 +62,56 @@ namespace HastPiControl.Models
             {
                 this.Inputs.Add(new GpioPinViewModel((byte)i) { Id = i, Name = "Input " + i });
                 var j = i + 8;
-                this.Outputs.Add(new GpioPinViewModel((byte)j, true) { Id = i, Name = "Output " + i });
+                this.Outputs.Add(new GpioPinViewModel((byte)j, isOutput: true) { Id = i, Name = "Output " + i });
             }
-            //this.Inputs.First(input => input.Id == 6).PropertyChanged += this.OnPropertyChanged;
+            var attachment = new AllJoynBusAttachment();
+            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this) };
+            doorProducer.Start();
+            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
+            doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+            doorOpenSwitch.Name = GarageDoorOpen;
+            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
+            doorPartialOpenSwitch.Name = GarageDoorPartialOpen;
+            doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+            var pb = this.Outputs.First(o => o.Id == 0);
+            pb.Name = GarageDoorPushButtonRelay;
         }
 
-        private async void OnPropertyChanged(object sender, PropertyChangedEventArgs propertyChangedEventArgs)
+        private async void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (propertyChangedEventArgs.PropertyName == "IsOn")
+            if (e.PropertyName == "IsOn")
             {
-                if (((GpioPinViewModel)sender).IsOn)
+                var input = (GpioPinViewModel)sender;
+                if (input.Id == 6)
                 {
-                    using (var client = new HttpClient())
+                    if (((GpioPinViewModel)sender).IsOn)
                     {
-                        var autoRemoteMessage = new Uri("https://goo.gl/<YourURLHere>");
-                        await client.GetAsync(autoRemoteMessage);
+                        using (var client = new HttpClient())
+                        {
+                            var autoRemoteMessage = new Uri("https://goo.gl/<YourURLHere>");
+                            await client.GetAsync(autoRemoteMessage);
+                        }
                     }
+                    doorProducer.EmitIsOpenChanged();
                 }
+                else
+                {
+                    doorProducer.EmitIsPartiallyOpenChanged();
+                }
+            }
+        }
+
+        public async void PushButton()
+        {
+            var output = this.Outputs.SingleOrDefault(o => o.Name == PiFaceDigital2ViewModel.GarageDoorPushButtonRelay);
+
+            if (output != null)
+            {
+                output.IsOn = true;
+
+                await Task.Delay(1000);
+
+                output.IsOn = false;
             }
         }
 
@@ -122,5 +175,48 @@ namespace HastPiControl.Models
                 this.Set(ref this.outputs, value);
             }
         }
+
+        private bool disposed;
+
+        /// <summary>
+        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+        /// </summary>
+        /// <filterpriority>2</filterpriority>
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Allows an object to try to free resources and perform other cleanup operations before it is reclaimed by garbage collection.
+        /// </summary>
+        ~PiFaceDigital2ViewModel()
+        {
+            this.Dispose(false);
+        }
+
+        // ReSharper disable once PublicMembersMustHaveComments
+        protected virtual void Dispose(bool disposing)
+        {
+            if (this.disposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                // free other managed objects that implement
+                // IDisposable only
+            }
+
+            // release any unmanaged objects
+            // set the object references to null
+            doorProducer.Stop();
+            doorProducer = null;
+
+            this.disposed = true;
+        }
+
     }
 }

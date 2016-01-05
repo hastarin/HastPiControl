@@ -1,0 +1,29 @@
+<node xmlns:xsi="http://www.w3.org/2001/XMLSchemainstance" xsi:noNamespaceSchemaLocation="https://allseenalliance.org/schemas/introspect.xsd">
+	<interface name="com.hastarin.GarageDoor">
+		<!--<annotation name="org.alljoyn.Bus.Secure" value="true" />-->
+		<description language="en">Interface for controlling a garage door.</description>
+		<property name="IsOpen" type="b" access="read">
+			<annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+			<description language="en">Is TRUE if the door is open.</description>
+		</property>
+		<property name="IsPartiallyOpen" type="b" access="read">
+			<annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+			<description language="en">Is TRUE if the door is only partially open for air flow.</description>
+		</property>
+		<method name="Open">
+			<description language="en">Opens the door if it's closed.</description>
+			<argument name="partialOpen" type="b" direction="in">
+				<description language="en">
+					If TRUE, the door will only be partially opened to allow air flow.
+					If FALSE, the door will be fully opened.
+				</description>
+			</argument>
+		</method>
+		<method name="Close">
+			<description language="en">Close the door if it's open.</description>
+		</method>
+		<method name="PushButton">
+			<description language="en">Will trigger the push button on the garage door.</description>
+		</method>
+	</interface>
+</node>
