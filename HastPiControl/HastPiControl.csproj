@@ -94,6 +94,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="project.json" />
+    <PRIResource Include="Strings\en-US\Resources.resw" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App.xaml.cs">
@@ -135,14 +136,11 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\com.hastarin.GarageDoor\com.hastarin.GarageDoor.vcxproj">
-      <Project>{2730868e-abde-4b6c-95ee-5da0ffa0aa38}</Project>
+      <Project>{b41cd572-1049-4a71-b93f-d06db25405ee}</Project>
       <Name>com.hastarin.GarageDoor</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Hastarin.Devices.MCP23S17\Hastarin.Devices.MCP23S17.csproj">
-      <Project>{F77A9925-6129-40EC-9C00-7293EEDCAD9B}</Project>
-      <Name>Hastarin.Devices.MCP23S17</Name>
-    </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>

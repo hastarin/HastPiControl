@@ -12,12 +12,12 @@
 		</property>
 		<method name="Open">
 			<description language="en">Opens the door if it's closed.</description>
-			<argument name="partialOpen" type="b" direction="in">
+			<arg name="partialOpen" type="b" direction="in">
 				<description language="en">
 					If TRUE, the door will only be partially opened to allow air flow.
 					If FALSE, the door will be fully opened.
 				</description>
-			</argument>
+			</arg>
 		</method>
 		<method name="Close">
 			<description language="en">Close the door if it's open.</description>

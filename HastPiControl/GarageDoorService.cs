@@ -20,12 +20,14 @@ namespace HastPiControl
     using Windows.Devices.AllJoyn;
     using Windows.Foundation;
     using Windows.UI.Core;
-    using Windows.UI.Xaml;
 
     using com.hastarin.GarageDoor;
 
     using HastPiControl.Models;
 
+    /// <summary>
+    /// My first garage door AllJoyn service
+    /// </summary>
     public class GarageDoorService : IGarageDoorService
     {
         private readonly PiFaceDigital2ViewModel piFaceDigital2ViewModel;
@@ -36,10 +38,10 @@ namespace HastPiControl
         public GarageDoorService(PiFaceDigital2ViewModel piFaceDigital2ViewModel)
         {
             this.piFaceDigital2ViewModel = piFaceDigital2ViewModel;
-            this.dispatcher = Window.Current.Dispatcher;
+            this.dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
         }
 
-        public IAsyncOperation<GarageDoorOpenResult> OpenAsync(AllJoynMessageInfo info)
+        public IAsyncOperation<GarageDoorOpenResult> OpenAsync(AllJoynMessageInfo info, bool partialOpen)
         {
             var task = new Task<GarageDoorOpenResult>(
                 () =>
@@ -62,7 +64,14 @@ namespace HastPiControl
                         {
                             return GarageDoorOpenResult.CreateFailureResult(0);
                         }
-                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PushButton);
+                        if (!partialOpen)
+                        {
+                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PushButton);
+                        }
+                        else
+                        {
+                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PartialOpen);
+                        }
                         return GarageDoorOpenResult.CreateSuccessResult();
                     });
             task.Start();
@@ -92,7 +101,7 @@ namespace HastPiControl
                         {
                             return GarageDoorCloseResult.CreateFailureResult(0);
                         }
-                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PushButton);
+                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.Close);
                         return GarageDoorCloseResult.CreateSuccessResult();
                     });
             task.Start();

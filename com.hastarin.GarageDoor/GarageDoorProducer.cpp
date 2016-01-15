@@ -161,8 +161,10 @@ void GarageDoorProducer::CallOpenHandler(_Inout_ alljoyn_busobject busObject, _I
     {
         AllJoynMessageInfo^ callInfo = ref new AllJoynMessageInfo(AllJoynHelpers::MultibyteToPlatformString(alljoyn_message_getsender(message)));
 
+        bool inputArg0;
+        (void)TypeConversionHelpers::GetAllJoynMessageArg(alljoyn_message_getarg(message, 0), "b", &inputArg0);
 
-        GarageDoorOpenResult^ result = create_task(producer->Service->OpenAsync(callInfo)).get();
+        GarageDoorOpenResult^ result = create_task(producer->Service->OpenAsync(callInfo, inputArg0)).get();
         create_task([](){}).then([=]
         {
             int32 status;
@@ -515,12 +517,12 @@ PCSTR com::hastarin::GarageDoor::c_GarageDoorIntrospectionXml = "<interface name
 "  </property>"
 "  <method name=\"Open\">"
 "    <description language=\"en\">Opens the door if it's closed.</description>"
-"    <argument name=\"partialOpen\" type=\"b\" direction=\"in\">"
+"    <arg name=\"partialOpen\" type=\"b\" direction=\"in\">"
 "      <description language=\"en\">"
 "					If TRUE, the door will only be partially opened to allow air flow."
 "					If FALSE, the door will be fully opened."
 "				</description>"
-"    </argument>"
+"    </arg>"
 "  </method>"
 "  <method name=\"Close\">"
 "    <description language=\"en\">Close the door if it's open.</description>"

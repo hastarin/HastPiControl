@@ -32,10 +32,12 @@ namespace com { namespace hastarin { namespace GarageDoor {
 
 // Methods
 GarageDoorOpenCalledEventArgs::GarageDoorOpenCalledEventArgs(
-    _In_ AllJoynMessageInfo^ info)
+    _In_ AllJoynMessageInfo^ info,
+    _In_ bool interfaceMemberPartialOpen)
     : m_raised(false),
     m_completionsRequired(0),
-    m_messageInfo(info)
+    m_messageInfo(info),
+    m_interfaceMemberPartialOpen(interfaceMemberPartialOpen)
 {
 	m_result = GarageDoorOpenResult::CreateFailureResult(ER_NOT_IMPLEMENTED);
 }

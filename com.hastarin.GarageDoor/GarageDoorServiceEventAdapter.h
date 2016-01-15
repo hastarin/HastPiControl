@@ -138,7 +138,7 @@ public:
 
     // Property Write Events
     // IGarageDoorService Implementation
-    virtual Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info);
+    virtual Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info, _In_ bool interfaceMemberPartialOpen);
     virtual Windows::Foundation::IAsyncOperation<GarageDoorCloseResult^>^ CloseAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info);
     virtual Windows::Foundation::IAsyncOperation<GarageDoorPushButtonResult^>^ PushButtonAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info);
 

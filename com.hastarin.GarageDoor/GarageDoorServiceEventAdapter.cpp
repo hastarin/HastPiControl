@@ -34,9 +34,9 @@ using namespace com::hastarin::GarageDoor;
 // is handled by returning a null result.
 
 // Methods
-IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorServiceEventAdapter::OpenAsync(_In_ AllJoynMessageInfo^ info)
+IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorServiceEventAdapter::OpenAsync(_In_ AllJoynMessageInfo^ info, _In_ bool interfaceMemberPartialOpen)
 {
-    auto args = ref new GarageDoorOpenCalledEventArgs(info);
+    auto args = ref new GarageDoorOpenCalledEventArgs(info, interfaceMemberPartialOpen);
     OpenCalled(this, args);
     return GarageDoorOpenCalledEventArgs::GetResultAsync(args);
 }

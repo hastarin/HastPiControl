@@ -45,7 +45,7 @@ public:
     static Windows::Foundation::IAsyncOperation<GarageDoorJoinSessionResult^>^ JoinSessionAsync(_In_ Windows::Devices::AllJoyn::AllJoynServiceInfo^ serviceInfo, _Inout_ GarageDoorWatcher^ watcher);
 
     // Call the Open method
-    Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync();
+    Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ bool interfaceMemberPartialOpen);
     // Call the Close method
     Windows::Foundation::IAsyncOperation<GarageDoorCloseResult^>^ CloseAsync();
     // Call the PushButton method

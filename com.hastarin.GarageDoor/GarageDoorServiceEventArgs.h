@@ -27,7 +27,7 @@ namespace com { namespace hastarin { namespace GarageDoor {
 public ref class GarageDoorOpenCalledEventArgs sealed
 {
 public:
-    GarageDoorOpenCalledEventArgs(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info);
+    GarageDoorOpenCalledEventArgs(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info, _In_ bool interfaceMemberPartialOpen);
 
     property Windows::Devices::AllJoyn::AllJoynMessageInfo^ MessageInfo
     {
@@ -38,6 +38,11 @@ public:
     {
         GarageDoorOpenResult^ get() { return m_result; }
         void set(_In_ GarageDoorOpenResult^ value) { m_result = value; }
+    }
+
+    property bool PartialOpen
+    {
+        bool get() { return m_interfaceMemberPartialOpen; }
     }
 
     Windows::Foundation::Deferral^ GetDeferral();
@@ -63,6 +68,7 @@ private:
     std::mutex m_lock;
     Windows::Devices::AllJoyn::AllJoynMessageInfo^ m_messageInfo;
     GarageDoorOpenResult^ m_result;
+    bool m_interfaceMemberPartialOpen;
 };
 
 public ref class GarageDoorCloseCalledEventArgs sealed

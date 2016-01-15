@@ -107,17 +107,19 @@ IAsyncOperation<GarageDoorJoinSessionResult^>^ GarageDoorConsumer::JoinSessionAs
     });
 }
 
-IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorConsumer::OpenAsync()
+IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorConsumer::OpenAsync(_In_ bool interfaceMemberPartialOpen)
 {
-    return create_async([this]() -> GarageDoorOpenResult^
+    return create_async([this, interfaceMemberPartialOpen]() -> GarageDoorOpenResult^
     {
         auto result = ref new GarageDoorOpenResult();
         
         alljoyn_message message = alljoyn_message_create(m_nativeBusAttachment);
-        size_t argCount = 0;
+        size_t argCount = 1;
         alljoyn_msgarg inputs = alljoyn_msgarg_array_create(argCount);
 
         QStatus status = ER_OK;
+        status = static_cast<QStatus>(TypeConversionHelpers::SetAllJoynMessageArg(alljoyn_msgarg_array_element(inputs, 0), "b", interfaceMemberPartialOpen));
+	
         if (ER_OK == status)
         {
             status = alljoyn_proxybusobject_methodcall(

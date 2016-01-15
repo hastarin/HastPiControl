@@ -27,7 +27,7 @@ public interface class IGarageDoorService
 {
 public:
     // Implement this function to handle calls to the Open method.
-    Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info );
+    Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info , _In_ bool interfaceMemberPartialOpen);
 
     // Implement this function to handle calls to the Close method.
     Windows::Foundation::IAsyncOperation<GarageDoorCloseResult^>^ CloseAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info );
