@@ -4,7 +4,7 @@
 // Created          : 14-11-2015
 // 
 // Last Modified By : Jon Benson
-// Last Modified On : 15-01-2016
+// Last Modified On : 20-03-2016
 // ***********************************************************************
 // <copyright file="PiFaceDigital2ViewModel.cs" company="Champion Data">
 //     Copyright (c) Champion Data. All rights reserved.
@@ -18,12 +18,14 @@ namespace HastPiControl.Models
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Linq;
-    using System.Net.Http;
     using System.Threading.Tasks;
 
     using Windows.ApplicationModel.Resources;
     using Windows.Devices.AllJoyn;
+    using Windows.UI.Core;
     using Windows.UI.Xaml;
+
+    using AutoRemotePlugin.AutoRemote.Devices;
 
     using com.hastarin.GarageDoor;
 
@@ -31,9 +33,14 @@ namespace HastPiControl.Models
 
     using Hastarin.Devices;
 
+    using HastPiControl.AutoRemote;
+    using HastPiControl.AutoRemote.Communications;
+
     /// <summary>Class PiFaceDigital2ViewModel.</summary>
     public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
     {
+        private const long MinimumInterval = 2000;
+
         /// <summary>Name to use for the input for the main door reed switch</summary>
         public static string GarageDoorOpen = "GarageDoorOpen";
 
@@ -45,7 +52,17 @@ namespace HastPiControl.Models
 
         private static GarageDoorProducer doorProducer;
 
+        private static string autoRemotePassword;
+
         private readonly string autoRemoteUri;
+
+        private readonly DispatcherTimer debounceTimer = new DispatcherTimer();
+
+        private readonly CoreDispatcher dispatcher;
+
+        private readonly GarageDoor garageDoor;
+
+        private readonly Stopwatch minimumIntervalStopwatch = new Stopwatch();
 
         private bool disposed;
 
@@ -58,6 +75,8 @@ namespace HastPiControl.Models
         /// <summary>Initializes a new instance of the ViewModelBase class.</summary>
         public PiFaceDigital2ViewModel()
         {
+            this.dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
+
             for (int i = 0; i < 8; i++)
             {
                 this.Inputs.Add(new GpioPinViewModel((byte)i) { Id = i, Name = "Input " + i });
@@ -67,12 +86,15 @@ namespace HastPiControl.Models
             var resource = ResourceLoader.GetForCurrentView();
             var newUri = resource.GetString("AutoRemoteNotificationUri");
             this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
+            autoRemotePassword = resource.GetString("AutoRemotePassword");
             var attachment = new AllJoynBusAttachment();
             attachment.AboutData.DefaultDescription = "PiFaceDigital 2 test application";
             attachment.AboutData.ModelNumber = "PiFaceDigital2";
 
-            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this) };
-            doorProducer.Start();
+            // ReSharper disable once ExceptionNotDocumented
+            this.debounceTimer.Interval = TimeSpan.FromMilliseconds(MinimumInterval);
+            this.debounceTimer.Tick += this.DebounceTimerOnTick;
+
             var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
             doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
             doorOpenSwitch.Name = GarageDoorOpen;
@@ -81,6 +103,13 @@ namespace HastPiControl.Models
             doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
             var pb = this.Outputs.First(o => o.Id == 0);
             pb.Name = GarageDoorPushButtonRelay;
+
+            this.garageDoor = new GarageDoor(this);
+            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this.garageDoor) };
+            doorProducer.Start();
+            var autoRemoteHttpServer = new AutoRemoteHttpServer(ConstantsThatShouldBeVariables.PORT);
+            autoRemoteHttpServer.RequestReceived += this.AutoRemoteHttpServerOnRequestReceived;
+            RegisterMyselfOnOtherDevice();
         }
 
         /// <summary>Gets or sets the inputs.</summary>
@@ -119,24 +148,6 @@ namespace HastPiControl.Models
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>Close the garage door</summary>
-        public async void Close()
-        {
-            var output = this.Outputs.SingleOrDefault(o => o.Name == GarageDoorPushButtonRelay);
-            var partialOpen = this.Inputs.SingleOrDefault(o => o.Name == GarageDoorPartialOpen);
-            var open = this.Inputs.SingleOrDefault(o => o.Name == GarageDoorOpen);
-
-            if (output == null || partialOpen == null || open == null)
-            {
-                return;
-            }
-            while (open.IsOn || partialOpen.IsOn)
-            {
-                this.PushButton();
-                await Task.Delay(15000);
-            }
-        }
-
         /// <summary>Initializes the pi face.</summary>
         public async Task InitializePiFace()
         {
@@ -150,54 +161,77 @@ namespace HastPiControl.Models
             this.timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             this.timer.Tick += this.TimerOnTick;
             this.timer.Start();
-            await this.NotifyAutoRemoteOfState(this.Inputs.FirstOrDefault(i => i.Name == GarageDoorOpen));
+            this.SendStatus();
         }
 
-        /// <summary>Partially opens the garage door</summary>
-        public async void PartialOpen()
+        private void DebounceTimerOnTick(object sender, object o)
         {
-            var output = this.Outputs.SingleOrDefault(o => o.Name == GarageDoorPushButtonRelay);
-            var partialOpen = this.Inputs.SingleOrDefault(o => o.Name == GarageDoorPartialOpen);
-            var open = this.Inputs.SingleOrDefault(o => o.Name == GarageDoorOpen);
+            ((DispatcherTimer)sender).Stop();
+            this.SendStatus();
+        }
 
-            if (output == null || partialOpen == null || open == null)
+        private void AutoRemoteHttpServerOnRequestReceived(Request request)
+        {
+            if (request.communication_base_params.type != "Message")
             {
                 return;
             }
-            if (open.IsOn || partialOpen.IsOn)
+            var m = request as Message;
+            if (m == null || m.password != autoRemotePassword)
             {
                 return;
             }
-            output.IsOn = true;
-            await Task.Delay(200);
-            output.IsOn = false;
-            var stopWatch = new Stopwatch();
-            stopWatch.Start();
-
-            while (!partialOpen.IsOn && stopWatch.ElapsedMilliseconds < 1000)
-            {
-                this.UpdateValuesFromPi();
-            }
-            stopWatch.Stop();
-            output.IsOn = true;
-            await Task.Delay(500);
-            output.IsOn = false;
+            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.ProcessMessage(m));
         }
 
-        /// <summary>Triggers the push button of the garage door</summary>
-        public async void PushButton()
+        private void ProcessMessage(Message m)
         {
-            var output = this.Outputs.SingleOrDefault(o => o.Name == GarageDoorPushButtonRelay);
-
-            if (output != null)
+            switch (m.message.ToLowerInvariant())
             {
-                output.IsOn = true;
-                await Task.Delay(500);
-                output.IsOn = false;
+                case "open":
+                    this.garageDoor.Open();
+                    break;
+                case "partialopen":
+                case "partial":
+                case "openpartial":
+                    this.garageDoor.PartialOpen();
+                    break;
+                case "close":
+                    this.garageDoor.Close();
+                    break;
+                default:
+                    this.SendStatus();
+                    break;
             }
         }
 
-        private async void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void SendStatus()
+        {
+            if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
+            {
+                return;
+            }
+            var sw = this.minimumIntervalStopwatch;
+            if (sw.IsRunning && sw.ElapsedMilliseconds < MinimumInterval)
+            {
+                return;
+            }
+            sw.Restart();
+            var device = GetAutoRemoteLocalDevice();
+            var state = "Closed";
+            if (this.garageDoor.IsOpen)
+            {
+                state = "Open";
+            }
+            if (this.garageDoor.IsPartiallyOpen)
+            {
+                state = "Partially Open";
+            }
+            var m = new Message { message = state + "=:=GarageDoor" };
+            m.Send(device);
+        }
+
+        private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == "IsOn")
             {
@@ -205,26 +239,12 @@ namespace HastPiControl.Models
                 if (input.Id == 6)
                 {
                     doorProducer.EmitIsOpenChanged();
-                    await this.NotifyAutoRemoteOfState(input);
                 }
                 else
                 {
                     doorProducer.EmitIsPartiallyOpenChanged();
                 }
-            }
-        }
-
-        private async Task NotifyAutoRemoteOfState(GpioPinViewModel input)
-        {
-            if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
-            {
-                return;
-            }
-            using (var client = new HttpClient())
-            {
-                var uri = this.autoRemoteUri.Replace("[STATE]", (input.IsOn ? "Open" : "Closed"));
-                var autoRemoteMessage = new Uri(uri);
-                await client.GetAsync(autoRemoteMessage);
+                this.debounceTimer.Start();
             }
         }
 
@@ -233,7 +253,7 @@ namespace HastPiControl.Models
             this.UpdateValuesFromPi();
         }
 
-        private void UpdateValuesFromPi()
+        internal void UpdateValuesFromPi()
         {
             var result = MCP23S17.ReadRegister16(); // do something with the values
             for (int i = 0; i < 8; i++)
@@ -243,6 +263,30 @@ namespace HastPiControl.Models
                 bitIsOn = (result & (1 << (i + 8))) != 0;
                 this.Outputs.First(input => input.Id == i).IsOn = bitIsOn;
             }
+        }
+
+        private static void RegisterMyselfOnOtherDevice()
+        {
+            var device = GetAutoRemoteLocalDevice();
+
+            //Instantiate Registration Request
+            RequestSendRegistration request = new RequestSendRegistration();
+
+            //Send registration request
+            request.Send(device);
+        }
+
+        private static Device GetAutoRemoteLocalDevice()
+        {
+            Device device;
+            var resource = ResourceLoader.GetForCurrentView();
+            //Instantiate Device (device to send stuff to). In a proper app this device should have been created with a received RequestSendRegistration
+            String personalKey = resource.GetString("AutoRemoteKey");
+            //see how to get it here http://joaoapps.com/autoremote/personal
+
+            var localip = resource.GetString("LocalDeviceIp");
+            device = new Device { localip = localip, port = "1817", key = personalKey };
+            return device;
         }
 
         /// <summary>

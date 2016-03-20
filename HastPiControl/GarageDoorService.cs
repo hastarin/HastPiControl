@@ -30,14 +30,17 @@ namespace HastPiControl
     /// </summary>
     public class GarageDoorService : IGarageDoorService
     {
-        private readonly PiFaceDigital2ViewModel piFaceDigital2ViewModel;
+        /// <summary>
+        /// Represents the garage door state
+        /// </summary>
+        public GarageDoor GarageDoor { get; set; }
 
         private CoreDispatcher dispatcher;
 
         /// <summary>Initializes a new instance of the <see cref="T:System.Object" /> class.</summary>
-        public GarageDoorService(PiFaceDigital2ViewModel piFaceDigital2ViewModel)
+        public GarageDoorService(GarageDoor garageDoor)
         {
-            this.piFaceDigital2ViewModel = piFaceDigital2ViewModel;
+            this.GarageDoor = garageDoor;
             this.dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
         }
 
@@ -46,31 +49,13 @@ namespace HastPiControl
             var task = new Task<GarageDoorOpenResult>(
                 () =>
                     {
-                        var input =
-                            this.piFaceDigital2ViewModel.Inputs.SingleOrDefault(
-                                i => i.Name == PiFaceDigital2ViewModel.GarageDoorOpen);
-                        if (input == null)
-                        {
-                            return GarageDoorOpenResult.CreateFailureResult(0);
-                        }
-                        if (input.IsOn)
-                        {
-                            return GarageDoorOpenResult.CreateFailureResult(1);
-                        }
-                        var output =
-                            this.piFaceDigital2ViewModel.Outputs.SingleOrDefault(
-                                o => o.Name == PiFaceDigital2ViewModel.GarageDoorPushButtonRelay);
-                        if (output == null)
-                        {
-                            return GarageDoorOpenResult.CreateFailureResult(0);
-                        }
                         if (!partialOpen)
                         {
-                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PushButton);
+                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, () => this.GarageDoor.PushButton());
                         }
                         else
                         {
-                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PartialOpen);
+                            this.dispatcher.RunAsync( CoreDispatcherPriority.Normal, () => this.GarageDoor.PartialOpen());
                         }
                         return GarageDoorOpenResult.CreateSuccessResult();
                     });
@@ -83,25 +68,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorCloseResult>(
                 () =>
                     {
-                        var input =
-                            this.piFaceDigital2ViewModel.Inputs.SingleOrDefault(
-                                i => i.Name == PiFaceDigital2ViewModel.GarageDoorOpen);
-                        if (input == null)
-                        {
-                            return GarageDoorCloseResult.CreateFailureResult(0);
-                        }
-                        if (!input.IsOn)
-                        {
-                            return GarageDoorCloseResult.CreateFailureResult(1);
-                        }
-                        var output =
-                            this.piFaceDigital2ViewModel.Outputs.SingleOrDefault(
-                                o => o.Name == PiFaceDigital2ViewModel.GarageDoorPushButtonRelay);
-                        if (output == null)
-                        {
-                            return GarageDoorCloseResult.CreateFailureResult(0);
-                        }
-                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.Close);
+                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.Close());
                         return GarageDoorCloseResult.CreateSuccessResult();
                     });
             task.Start();
@@ -113,14 +80,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorPushButtonResult>(
                 () =>
                     {
-                        var output =
-                            this.piFaceDigital2ViewModel.Outputs.SingleOrDefault(
-                                o => o.Name == PiFaceDigital2ViewModel.GarageDoorPushButtonRelay);
-                        if (output == null)
-                        {
-                            return GarageDoorPushButtonResult.CreateFailureResult(0);
-                        }
-                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, this.piFaceDigital2ViewModel.PushButton);
+                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.PushButton());
                         return GarageDoorPushButtonResult.CreateSuccessResult();
                     });
             task.Start();
@@ -132,15 +92,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorGetIsOpenResult>(
                 () =>
                     {
-                        var input =
-                            this.piFaceDigital2ViewModel.Inputs.SingleOrDefault(
-                                i => i.Name == PiFaceDigital2ViewModel.GarageDoorOpen);
-                        if (input == null)
-                        {
-                            return GarageDoorGetIsOpenResult.CreateFailureResult(0);
-                        }
-
-                        return GarageDoorGetIsOpenResult.CreateSuccessResult(input.IsOn);
+                        return GarageDoorGetIsOpenResult.CreateSuccessResult(this.GarageDoor.IsOpen);
                     });
             task.Start();
             return task.AsAsyncOperation();
@@ -151,15 +103,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorGetIsPartiallyOpenResult>(
                 () =>
                     {
-                        var input =
-                            this.piFaceDigital2ViewModel.Inputs.SingleOrDefault(
-                                i => i.Name == PiFaceDigital2ViewModel.GarageDoorPartialOpen);
-                        if (input == null)
-                        {
-                            return GarageDoorGetIsPartiallyOpenResult.CreateFailureResult(0);
-                        }
-
-                        return GarageDoorGetIsPartiallyOpenResult.CreateSuccessResult(input.IsOn);
+                        return GarageDoorGetIsPartiallyOpenResult.CreateSuccessResult(this.GarageDoor.IsPartiallyOpen);
                     });
             task.Start();
             return task.AsAsyncOperation();

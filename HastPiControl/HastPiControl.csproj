@@ -100,10 +100,21 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="AutoRemote\AutoRemoteHttpServer.cs" />
+    <Compile Include="AutoRemote\Communications\Communication.cs" />
+    <Compile Include="AutoRemote\Communications\Message.cs" />
+    <Compile Include="AutoRemote\Communications\Request.cs" />
+    <Compile Include="AutoRemote\Communications\RequestSendRegistration.cs" />
+    <Compile Include="AutoRemote\Communications\Response.cs" />
+    <Compile Include="AutoRemote\Communications\ResponseNoAction.cs" />
+    <Compile Include="AutoRemote\Constants.cs" />
+    <Compile Include="AutoRemote\Devices\Device.cs" />
+    <Compile Include="AutoRemote\Devices\DeviceAdditionalProperties.cs" />
     <Compile Include="GarageDoorService.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Models\GarageDoor.cs" />
     <Compile Include="Models\GpioPinViewModel.cs" />
     <Compile Include="Models\PiFaceDigital2ViewModel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
