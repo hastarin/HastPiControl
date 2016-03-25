@@ -19,7 +19,6 @@ namespace HastPiControl.Models
     using Windows.ApplicationModel.Resources;
     using Windows.Devices.AllJoyn;
     using Windows.Networking;
-    using Windows.UI.Core;
     using Windows.UI.Xaml;
 
     using com.hastarin.GarageDoor;
@@ -69,15 +68,11 @@ namespace HastPiControl.Models
 
         private DispatcherTimer timer;
 
-        private CoreDispatcher dispatcher;
-
-        private Device defaultDevice;
+        private readonly Device defaultDevice;
 
         /// <summary>Initializes a new instance of the <see cref="PiFaceDigital2ViewModel" /> class.</summary>
         public PiFaceDigital2ViewModel()
         {
-            this.dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
-
             for (int i = 0; i < 8; i++)
             {
                 this.Inputs.Add(new GpioPinViewModel((byte)i) { Id = i, Name = "Input " + i });
@@ -195,7 +190,7 @@ namespace HastPiControl.Models
             this.SendStatus();
         }
 
-        private void AutoRemoteHttpServerOnRequestReceived(Request request, HostName hostName)
+        private async void AutoRemoteHttpServerOnRequestReceived(Request request, HostName hostName)
         {
             if (request.communication_base_params.type != "Message")
             {
@@ -211,7 +206,7 @@ namespace HastPiControl.Models
                 }
                 return;
             }
-            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.ProcessMessage(m, device));
+            await DispatcherHelper.RunAsync(() => this.ProcessMessage(m, device));
         }
 
         private void ProcessMessage(Message m, Device device)
