@@ -1,33 +1,26 @@
-﻿namespace HastPiControl.AutoRemote.Communications
-{
-    using System;
+﻿// ***********************************************************************
+// Assembly         : HastPiControl
+// Author           : Jon Benson
+// Created          : 20-03-2016
+// 
+// Last Modified By : Jon Benson
+// Last Modified On : 26-03-2016
+// ***********************************************************************
 
+// ReSharper disable InconsistentNaming
+namespace HastPiControl.AutoRemote.Communications
+{
+    /// <summary>Class Message.</summary>
+    /// <seealso cref="HastPiControl.AutoRemote.Communications.Request" />
     public class Message : Request
     {
-        /// <summary>
-        /// Message text
-        /// </summary>
-        public String message { get; set; }
-        /// <summary>
-        /// Optional password. Shouldn't allow incoming messages unless this matches with a user defined password.
-        /// </summary>
-        public String password { get; set; }
-        /// <summary>
-        /// Optional Files array. 
-        /// </summary>
-        public String[] files { get; set; }
+        /// <summary>Message text</summary>
+        public string message { get; set; }
 
-        /// <summary>
-        /// In this demo it simply writes a line in the main form. You should handle the message in which ever way you want.
-        /// </summary>
-        /// <returns>The default ResponseNoAction from the super class</returns>
-        public override Response ExecuteRequest()
-        {
-            var baseResponse = base.ExecuteRequest();
-            // TODO: Handle the message here
-            return baseResponse;
-        }
+        /// <summary>Optional password. Shouldn't allow incoming messages unless this matches with a user defined password.</summary>
+        public string password { get; set; }
+
+        /// <summary>Optional Files array.</summary>
+        public string[] files { get; set; }
     }
-
-    
 }

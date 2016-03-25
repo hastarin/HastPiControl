@@ -18,6 +18,8 @@ namespace HastPiControl
     using Windows.UI.Xaml.Controls;
     using Windows.UI.Xaml.Navigation;
 
+    using GalaSoft.MvvmLight.Threading;
+
     using Microsoft.ApplicationInsights;
 
     /// <summary>Provides application-specific behavior to supplement the default Application class.</summary>
@@ -57,7 +59,7 @@ namespace HastPiControl
                 // Create a Frame to act as the navigation context and navigate to the first page
                 rootFrame = new Frame();
 
-                rootFrame.NavigationFailed += OnNavigationFailed;
+                rootFrame.NavigationFailed += this.OnNavigationFailed;
 
                 if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
                 {
@@ -84,7 +86,7 @@ namespace HastPiControl
         /// <param name="e">Details about the navigation failure</param>
         private void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
         {
-            throw new Exception("Failed to load Page " + e.SourcePageType.FullName);
+            throw new Exception(string.Format(@"Failed to load Page {0}", e.SourcePageType.FullName));
         }
 
         /// <summary>

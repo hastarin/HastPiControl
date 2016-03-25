@@ -4,11 +4,7 @@
 // Created          : 14-11-2015
 // 
 // Last Modified By : Jon Benson
-// Last Modified On : 20-03-2016
-// ***********************************************************************
-// <copyright file="PiFaceDigital2ViewModel.cs" company="Champion Data">
-//     Copyright (c) Champion Data. All rights reserved.
-// </copyright>
+// Last Modified On : 26-03-2016
 // ***********************************************************************
 
 namespace HastPiControl.Models
@@ -22,19 +18,20 @@ namespace HastPiControl.Models
 
     using Windows.ApplicationModel.Resources;
     using Windows.Devices.AllJoyn;
+    using Windows.Networking;
     using Windows.UI.Core;
     using Windows.UI.Xaml;
-
-    using AutoRemotePlugin.AutoRemote.Devices;
 
     using com.hastarin.GarageDoor;
 
     using GalaSoft.MvvmLight;
+    using GalaSoft.MvvmLight.Threading;
 
     using Hastarin.Devices;
 
     using HastPiControl.AutoRemote;
     using HastPiControl.AutoRemote.Communications;
+    using HastPiControl.AutoRemote.Devices;
 
     /// <summary>Class PiFaceDigital2ViewModel.</summary>
     public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
@@ -54,15 +51,15 @@ namespace HastPiControl.Models
 
         private static string autoRemotePassword;
 
-        private readonly string autoRemoteUri;
-
         private readonly DispatcherTimer debounceTimer = new DispatcherTimer();
-
-        private readonly CoreDispatcher dispatcher;
 
         private readonly GarageDoor garageDoor;
 
         private readonly Stopwatch minimumIntervalStopwatch = new Stopwatch();
+
+        private AutoRemoteHttpServer autoRemoteHttpServer;
+
+        private string autoRemoteUri;
 
         private bool disposed;
 
@@ -72,7 +69,11 @@ namespace HastPiControl.Models
 
         private DispatcherTimer timer;
 
-        /// <summary>Initializes a new instance of the ViewModelBase class.</summary>
+        private CoreDispatcher dispatcher;
+
+        private Device defaultDevice;
+
+        /// <summary>Initializes a new instance of the <see cref="PiFaceDigital2ViewModel" /> class.</summary>
         public PiFaceDigital2ViewModel()
         {
             this.dispatcher = CoreWindow.GetForCurrentThread().Dispatcher;
@@ -83,33 +84,20 @@ namespace HastPiControl.Models
                 var j = i + 8;
                 this.Outputs.Add(new GpioPinViewModel((byte)j, true) { Id = i, Name = "Output " + i });
             }
-            var resource = ResourceLoader.GetForCurrentView();
-            var newUri = resource.GetString("AutoRemoteNotificationUri");
-            this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
-            autoRemotePassword = resource.GetString("AutoRemotePassword");
-            var attachment = new AllJoynBusAttachment();
-            attachment.AboutData.DefaultDescription = "PiFaceDigital 2 test application";
-            attachment.AboutData.ModelNumber = "PiFaceDigital2";
+            this.LoadResourceStrings();
 
             // ReSharper disable once ExceptionNotDocumented
             this.debounceTimer.Interval = TimeSpan.FromMilliseconds(MinimumInterval);
             this.debounceTimer.Tick += this.DebounceTimerOnTick;
 
-            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
-            doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
-            doorOpenSwitch.Name = GarageDoorOpen;
-            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
-            doorPartialOpenSwitch.Name = GarageDoorPartialOpen;
-            doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
-            var pb = this.Outputs.First(o => o.Id == 0);
-            pb.Name = GarageDoorPushButtonRelay;
+            this.HookEventsAndSetupInputOutputNames();
 
             this.garageDoor = new GarageDoor(this);
-            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this.garageDoor) };
-            doorProducer.Start();
-            var autoRemoteHttpServer = new AutoRemoteHttpServer(ConstantsThatShouldBeVariables.PORT);
-            autoRemoteHttpServer.RequestReceived += this.AutoRemoteHttpServerOnRequestReceived;
-            RegisterMyselfOnOtherDevice();
+
+            this.SetupAllJoynBusAttachmentAndProducer();
+
+            this.SetupAutoRemoteHttpServer();
+            this.defaultDevice = GetAutoRemoteLocalDevice();
         }
 
         /// <summary>Gets or sets the inputs.</summary>
@@ -164,27 +152,69 @@ namespace HastPiControl.Models
             this.SendStatus();
         }
 
+        private void SetupAutoRemoteHttpServer()
+        {
+            this.autoRemoteHttpServer = new AutoRemoteHttpServer(ConstantsThatShouldBeVariables.PORT);
+            this.autoRemoteHttpServer.RequestReceived += this.AutoRemoteHttpServerOnRequestReceived;
+            this.autoRemoteHttpServer.Start();
+            RegisterMyselfOnOtherDevice();
+        }
+
+        private void HookEventsAndSetupInputOutputNames()
+        {
+            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
+            doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+            doorOpenSwitch.Name = GarageDoorOpen;
+            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
+            doorPartialOpenSwitch.Name = GarageDoorPartialOpen;
+            doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+            var pb = this.Outputs.First(o => o.Id == 0);
+            pb.Name = GarageDoorPushButtonRelay;
+        }
+
+        private void SetupAllJoynBusAttachmentAndProducer()
+        {
+            var attachment = new AllJoynBusAttachment();
+            attachment.AboutData.DefaultDescription = "PiFaceDigital 2 Garage Door controller";
+            attachment.AboutData.ModelNumber = "PiFaceDigital2";
+            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this.garageDoor) };
+            doorProducer.Start();
+        }
+
+        private void LoadResourceStrings()
+        {
+            var resource = ResourceLoader.GetForCurrentView();
+            var newUri = resource.GetString("AutoRemoteNotificationUri");
+            this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
+            autoRemotePassword = resource.GetString("AutoRemotePassword");
+        }
+
         private void DebounceTimerOnTick(object sender, object o)
         {
             ((DispatcherTimer)sender).Stop();
             this.SendStatus();
         }
 
-        private void AutoRemoteHttpServerOnRequestReceived(Request request)
+        private void AutoRemoteHttpServerOnRequestReceived(Request request, HostName hostName)
         {
             if (request.communication_base_params.type != "Message")
             {
                 return;
             }
             var m = request as Message;
+            var device = new Device {key = request.sender, localip = hostName.RawName};
             if (m == null || m.password != autoRemotePassword)
             {
+                if (Device.KnownDeviceList.Contains(request.sender))
+                {
+                    this.SendStatus(device);
+                }
                 return;
             }
-            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.ProcessMessage(m));
+            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.ProcessMessage(m, device));
         }
 
-        private void ProcessMessage(Message m)
+        private void ProcessMessage(Message m, Device device)
         {
             switch (m.message.ToLowerInvariant())
             {
@@ -200,12 +230,12 @@ namespace HastPiControl.Models
                     this.garageDoor.Close();
                     break;
                 default:
-                    this.SendStatus();
+                    this.SendStatus(device);
                     break;
             }
         }
 
-        private void SendStatus()
+        private void SendStatus(Device device = null)
         {
             if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
             {
@@ -217,7 +247,7 @@ namespace HastPiControl.Models
                 return;
             }
             sw.Restart();
-            var device = GetAutoRemoteLocalDevice();
+
             var state = "Closed";
             if (this.garageDoor.IsOpen)
             {
@@ -228,7 +258,7 @@ namespace HastPiControl.Models
                 state = "Partially Open";
             }
             var m = new Message { message = state + "=:=GarageDoor" };
-            m.Send(device);
+            m.Send(device ?? this.defaultDevice);
         }
 
         private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -253,6 +283,7 @@ namespace HastPiControl.Models
             this.UpdateValuesFromPi();
         }
 
+        /// <summary>Updates the values from the Pi.</summary>
         internal void UpdateValuesFromPi()
         {
             var result = MCP23S17.ReadRegister16(); // do something with the values
@@ -278,14 +309,13 @@ namespace HastPiControl.Models
 
         private static Device GetAutoRemoteLocalDevice()
         {
-            Device device;
             var resource = ResourceLoader.GetForCurrentView();
             //Instantiate Device (device to send stuff to). In a proper app this device should have been created with a received RequestSendRegistration
             String personalKey = resource.GetString("AutoRemoteKey");
             //see how to get it here http://joaoapps.com/autoremote/personal
 
             var localip = resource.GetString("LocalDeviceIp");
-            device = new Device { localip = localip, port = "1817", key = personalKey };
+            var device = new Device { localip = localip, port = "1817", key = personalKey };
             return device;
         }
 
@@ -310,6 +340,7 @@ namespace HastPiControl.Models
             {
                 // free other managed objects that implement
                 // IDisposable only
+                this.autoRemoteHttpServer.Stop();
             }
 
             // release any unmanaged objects

@@ -1,26 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿// ***********************************************************************
+// Assembly         : HastPiControl
+// Author           : Jon Benson
+// Created          : 20-03-2016
+// 
+// Last Modified By : Jon Benson
+// Last Modified On : 26-03-2016
+// ***********************************************************************
 
-namespace AutoRemotePlugin.AutoRemote.Devices
+// ReSharper disable InconsistentNaming
+namespace HastPiControl.AutoRemote.Devices
 {
-    using HastPiControl.AutoRemote;
+    using System;
 
+    /// <summary>Class DeviceAdditionalProperties.</summary>
     public class DeviceAdditionalProperties
     {
-        /// <summary>
-        /// The icon URL. Has to be a publicly accessible url of a png or jpg image
-        /// </summary>
-        public String iconUrl { get { return Constants.ICON_URL; } }
-        /// <summary>
-        /// The plugin type. Something like 'windows plugin' or 'mac plugin'
-        /// </summary>
-        public String type { get { return Constants.PLUGIN_TYPE; } }
-        /// <summary>
-        /// Whether or not this plugin can receive files via HTTP PUT
-        /// </summary>
-        public Boolean canReceiveFiles { get { return Constants.CAN_RECEIVE_FILES; } }
+        /// <summary>The icon URL. Has to be a publicly accessible url of a png or jpg image</summary>
+        public String iconUrl { get; } = Constants.ICON_URL;
+
+        /// <summary>The plugin type. Something like 'windows plugin' or 'mac plugin'</summary>
+        public String type { get; } = Constants.PLUGIN_TYPE;
+
+        /// <summary>Whether or not this plugin can receive files via HTTP PUT</summary>
+        public Boolean canReceiveFiles { get; } = Constants.CAN_RECEIVE_FILES;
     }
 }

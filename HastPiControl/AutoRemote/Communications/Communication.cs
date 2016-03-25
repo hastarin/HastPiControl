@@ -1,4 +1,14 @@
-﻿namespace HastPiControl.AutoRemote.Communications
+﻿// ***********************************************************************
+// Assembly         : HastPiControl
+// Author           : Jon Benson
+// Created          : 20-03-2016
+// 
+// Last Modified By : Jon Benson
+// Last Modified On : 26-03-2016
+// ***********************************************************************
+
+// ReSharper disable InconsistentNaming
+namespace HastPiControl.AutoRemote.Communications
 {
     using System;
     using System.Collections.Generic;
@@ -6,52 +16,39 @@
     using System.Net.Http;
     using System.Threading.Tasks;
 
-    using AutoRemotePlugin.AutoRemote;
-    using AutoRemotePlugin.AutoRemote.Devices;
+    using HastPiControl.AutoRemote.Devices;
 
     using Newtonsoft.Json;
 
-    public class CommunicationBaseParams
-    {
-        public String sender
-        {
-            get
-            {
-                return ConstantsThatShouldBeVariables.ID;
-            }
-        }
-
-        public String type { get; set; }
-    }
-
+    /// <summary>Class Communication.</summary>
     public class Communication
     {
+        /// <summary>The HTTP client</summary>
         private readonly HttpClient httpClient = new HttpClient();
 
+        /// <summary>Initializes a new instance of the <see cref="Communication" /> class.</summary>
         public Communication()
         {
-            this.communication_base_params = new CommunicationBaseParams();
-            this.communication_base_params.type = this.GetType().Name;
+            this.communication_base_params = new CommunicationBaseParams { type = this.GetType().Name };
         }
 
+        /// <summary>Gets or sets the key.</summary>
         public String key { get; set; }
 
-        public String sender
-        {
-            get
-            {
-                return this.communication_base_params.sender;
-            }
-        }
+        /// <summary>Gets the sender.</summary>
+        public string sender { get; set; }
 
+        /// <summary>Gets or sets the communication_base_params.</summary>
         public CommunicationBaseParams communication_base_params { get; set; }
 
+        /// <summary>Gets the request from json.</summary>
+        /// <param name="json">The json.</param>
         public static Request GetRequestFromJson(string json)
         {
             var comm = JsonConvert.DeserializeObject<Communication>(json);
             var typeString = "HastPiControl.AutoRemote.Communications." + comm.communication_base_params.type;
             Type type = Type.GetType(typeString);
-            Request autoRemoteRequest = (Request)JsonConvert.DeserializeObject(json, type);
+            var autoRemoteRequest = (Request)JsonConvert.DeserializeObject(json, type);
             return autoRemoteRequest;
         }
 
@@ -60,37 +57,18 @@
         public async void Send(Device device)
         {
             this.key = device.key;
+            if (device.port == null)
+            {
+                device.port = "1817";
+            }
             var url = "http://" + device.localip + ":" + device.port + "/";
 
+            this.sender = communication_base_params.sender;
             var dataString = JsonConvert.SerializeObject(this);
             var content = new StringContent(dataString);
 
-            //The content var will contain something like this:
-            //{
-            //    "id": "windows8joao",
-            //    "name": "Joao's Windows 8 Machine",
-            //    "type": "plugin",
-            //    "localip": "192.168.1.72",
-            //    "publicip": null,
-            //    "port": "1820",
-            //    "haswifi": true,
-            //    "additional": {
-            //        "iconUrl": "http://icons.iconarchive.com/icons/dakirby309/windows-8-metro/256/Folders-OS-Windows-8-Metro-icon.png",
-            //        "type": "Windows 8 Plugin by joaomgcd",
-            //        "canReceiveFiles": false
-            //    },
-            //    "ttl": 0,
-            //    "collapsekey": null,
-            //    "key": "YOUR_DEVICE_KEY",
-            //    "sender": "windows8joao",
-            //    "communication_base_params": {
-            //        "sender": "windows8joao",
-            //        "type": "RequestSendRegistration"
-            //    }
-            //}
-
             Debug.WriteLine("Sending through local ip");
-            //send this as json objecto to localip
+            //send this as json object to localip
             Boolean success = await this.SendContent(url, content);
 
             //if it fails
@@ -99,13 +77,15 @@
                 Debug.WriteLine("Couldn't send through local network. Sending through GCM");
                 url = "https://autoremotejoaomgcd.appspot.com/" + this.GetGCMEndpoint();
 
-                //To send trhough GCM we need to send the request as a form encoded content and add the key and sender parameters
+                //To send though GCM we need to send the request as a form encoded content and add the key and sender parameters
                 var postData = new List<KeyValuePair<string, string>>
                                    {
                                        new KeyValuePair<string, string>(
                                            "request",
                                            dataString),
-                                       new KeyValuePair<string, string>("key", this.key),
+                                       new KeyValuePair<string, string>(
+                                           "key",
+                                           this.key),
                                        new KeyValuePair<string, string>(
                                            "sender",
                                            this.sender)
@@ -136,15 +116,17 @@
         {
             try
             {
-                var result = await this.httpClient.PostAsync(url, content);
+                await this.httpClient.PostAsync(url, content);
                 return true;
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 return false;
             }
         }
 
+        /// <summary>Gets the GCM endpoint.</summary>
+        /// <returns>String.</returns>
         protected virtual String GetGCMEndpoint()
         {
             return null;

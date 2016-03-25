@@ -4,7 +4,7 @@
 // Created          : 14-11-2015
 // 
 // Last Modified By : Jon Benson
-// Last Modified On : 28-11-2015
+// Last Modified On : 26-03-2016
 // ***********************************************************************
 
 namespace HastPiControl.Models
@@ -20,13 +20,11 @@ namespace HastPiControl.Models
     {
         private int id;
 
-        private string name;
-
         private bool isOn;
 
-        /// <summary>
-        /// Initializes a new instance of the ViewModelBase class.
-        /// </summary>
+        private string name;
+
+        /// <summary>Initializes a new instance of the <see cref="GpioPinViewModel" /> class.</summary>
         public GpioPinViewModel()
         {
         }
@@ -44,7 +42,7 @@ namespace HastPiControl.Models
         /// <value>The address.</value>
         public byte Address { get; }
 
-        /// <summary>Gets a value indicating whether this instance is output.</summary>
+        /// <summary>Gets a value indicating whether this instance represents an output.</summary>
         /// <value><c>true</c> if this instance is output; otherwise, <c>false</c>.</value>
         public bool IsOutput { get; }
 

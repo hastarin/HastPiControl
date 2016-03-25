@@ -4,19 +4,19 @@
 // Created          : 20-03-2016
 // 
 // Last Modified By : Jon Benson
-// Last Modified On : 20-03-2016
+// Last Modified On : 26-03-2016
 // ***********************************************************************
 
 namespace HastPiControl.Models
 {
-    using System.ComponentModel;
     using System.Diagnostics;
     using System.Linq;
-    using System.Runtime.CompilerServices;
     using System.Threading.Tasks;
 
+    using GalaSoft.MvvmLight;
+
     /// <summary>Wrapper for the garage door connected to a Raspberry Pi 2</summary>
-    public class GarageDoor : INotifyPropertyChanged
+    public class GarageDoor : ViewModelBase
     {
         private readonly GpioPinViewModel openInput;
 
@@ -26,9 +26,7 @@ namespace HastPiControl.Models
 
         private readonly GpioPinViewModel pushButtonRelay;
 
-        private PropertyChangedEventHandler propertyChanged;
-
-        /// <summary>Initializes a new instance of the <see cref="T:System.Object" /> class.</summary>
+        /// <summary>Initializes a new instance of the <see cref="GarageDoor" /> class.</summary>
         public GarageDoor(PiFaceDigital2ViewModel piFaceDigital2ViewModel)
         {
             this.piFaceDigital2ViewModel = piFaceDigital2ViewModel;
@@ -44,16 +42,16 @@ namespace HastPiControl.Models
                 {
                     if (args.PropertyName == "IsOn")
                     {
-                        this.OnPropertyChanged("IsOpen");
-                        this.OnPropertyChanged("IsClosed");
+                        this.RaisePropertyChanged(() => this.IsOpen);
+                        this.RaisePropertyChanged(() => this.IsClosed);
                     }
                 };
             this.partialOpenInput.PropertyChanged += (sender, args) =>
                 {
                     if (args.PropertyName == "IsOn")
                     {
-                        this.OnPropertyChanged("IsPartiallyOpen");
-                        this.OnPropertyChanged("IsClosed");
+                        this.RaisePropertyChanged(() => this.IsPartiallyOpen);
+                        this.RaisePropertyChanged(() => this.IsClosed);
                     }
                 };
         }
@@ -66,18 +64,6 @@ namespace HastPiControl.Models
 
         /// <summary>Gets a value indicating if the door is closed.</summary>
         public bool IsClosed => this.openInput.IsOn == false && this.IsPartiallyOpen == false;
-
-        public event PropertyChangedEventHandler PropertyChanged
-        {
-            add
-            {
-                this.propertyChanged += value;
-            }
-            remove
-            {
-                this.propertyChanged -= value;
-            }
-        }
 
         /// <summary>Close the garage door</summary>
         public async void Close()
@@ -131,27 +117,6 @@ namespace HastPiControl.Models
             this.pushButtonRelay.IsOn = true;
             await Task.Delay(500);
             this.pushButtonRelay.IsOn = false;
-        }
-
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChangedEventHandler changedEventHandler = this.propertyChanged;
-            if (changedEventHandler == null)
-            {
-                return;
-            }
-            changedEventHandler(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        protected bool SetProperty<T>(ref T storage, T value, [CallerMemberName] string propertyName = null)
-        {
-            if (Equals(storage, value))
-            {
-                return false;
-            }
-            storage = value;
-            this.OnPropertyChanged(propertyName);
-            return true;
         }
     }
 }

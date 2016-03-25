@@ -102,6 +102,7 @@
     </Compile>
     <Compile Include="AutoRemote\AutoRemoteHttpServer.cs" />
     <Compile Include="AutoRemote\Communications\Communication.cs" />
+    <Compile Include="AutoRemote\Communications\CommunicationBaseParams.cs" />
     <Compile Include="AutoRemote\Communications\Message.cs" />
     <Compile Include="AutoRemote\Communications\Request.cs" />
     <Compile Include="AutoRemote\Communications\RequestSendRegistration.cs" />
