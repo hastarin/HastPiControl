@@ -63,7 +63,7 @@ namespace HastPiControl.AutoRemote.Communications
             }
             var url = "http://" + device.localip + ":" + device.port + "/";
 
-            this.sender = communication_base_params.sender;
+            this.sender = this.communication_base_params.sender;
             var dataString = JsonConvert.SerializeObject(this);
             var content = new StringContent(dataString);
 

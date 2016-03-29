@@ -16,9 +16,21 @@ namespace HastPiControl.AutoRemote.Communications
     /// <seealso cref="HastPiControl.AutoRemote.Communications.Communication" />
     public class Response : Communication
     {
+        private string responseError1 = "";
+
         //If the request resulted in error, set the error here
         /// <summary>Gets or sets the response error.</summary>
-        public String responseError { get; set; }
+        public string responseError
+        {
+            get
+            {
+                return this.responseError1;
+            }
+            set
+            {
+                this.responseError1 = value;
+            }
+        }
 
         /// <summary>Gets the GCM endpoint.</summary>
         protected override string GetGCMEndpoint()
