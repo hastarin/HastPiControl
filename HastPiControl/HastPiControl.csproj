@@ -148,11 +148,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\com.hastarin.GarageDoor\com.hastarin.GarageDoor.vcxproj">
-      <Project>{b41cd572-1049-4a71-b93f-d06db25405ee}</Project>
+      <Project>{211e28d3-0458-4767-b5d2-104e668760ae}</Project>
       <Name>com.hastarin.GarageDoor</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>

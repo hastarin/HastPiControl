@@ -97,7 +97,8 @@ namespace HastPiControl.AutoRemote
             var autoRemoteResponse = new Response();
             try
             {
-                var autoRemoteRequest = Communication.GetRequestFromJson(lines.Last());
+                var jsonData = lines.Last();
+                var autoRemoteRequest = Communication.GetRequestFromJson(jsonData);
                 this.RequestReceived?.Invoke(autoRemoteRequest,args.Socket.Information.RemoteAddress);
                 autoRemoteResponse = autoRemoteRequest.ExecuteRequest();
             }

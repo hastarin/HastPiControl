@@ -33,7 +33,7 @@ namespace HastPiControl.AutoRemote.Communications
         }
 
         /// <summary>Gets or sets the key.</summary>
-        public String key { get; set; }
+        public string key { get; set; }
 
         /// <summary>Gets the sender.</summary>
         public string sender { get; set; }
@@ -46,6 +46,10 @@ namespace HastPiControl.AutoRemote.Communications
         public static Request GetRequestFromJson(string json)
         {
             var comm = JsonConvert.DeserializeObject<Communication>(json);
+            if (comm == null)
+            {
+                return new Request();
+            }
             var typeString = "HastPiControl.AutoRemote.Communications." + comm.communication_base_params.type;
             Type type = Type.GetType(typeString);
             var autoRemoteRequest = (Request)JsonConvert.DeserializeObject(json, type);
@@ -127,7 +131,7 @@ namespace HastPiControl.AutoRemote.Communications
 
         /// <summary>Gets the GCM endpoint.</summary>
         /// <returns>String.</returns>
-        protected virtual String GetGCMEndpoint()
+        protected virtual string GetGCMEndpoint()
         {
             return null;
         }

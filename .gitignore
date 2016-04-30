@@ -214,3 +214,5 @@ ModelManifest.xml
 # Visual Studio 2015 Source Tracking Database
 *.VC.opendb
 
+/HastPiControl/Strings/en-US/Resources.resw
+/HastPiControl.sln.GhostDoc.xml

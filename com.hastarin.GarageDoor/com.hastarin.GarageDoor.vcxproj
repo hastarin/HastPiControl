@@ -27,7 +27,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{b41cd572-1049-4a71-b93f-d06db25405ee}</ProjectGuid>
+    <ProjectGuid>{211e28d3-0458-4767-b5d2-104e668760ae}</ProjectGuid>
     <Keyword>WindowsRuntimeComponent</Keyword>
     <ProjectName>com.hastarin.GarageDoor</ProjectName>
     <RootNamespace>com.hastarin.GarageDoor</RootNamespace>
