@@ -28,9 +28,12 @@ namespace HastPiControl.Models
 
     using Hastarin.Devices;
 
+    using HastPiControl.Adafruit;
+    using HastPiControl.Adafruit.Models;
     using HastPiControl.AutoRemote;
     using HastPiControl.AutoRemote.Communications;
     using HastPiControl.AutoRemote.Devices;
+    using HastPiControl.IFTTT;
 
     /// <summary>Class PiFaceDigital2ViewModel.</summary>
     public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
@@ -48,7 +51,11 @@ namespace HastPiControl.Models
 
         private static GarageDoorProducer doorProducer;
 
+        private static string aioKey;
+
         private static string autoRemotePassword;
+
+        private static string makerKey;
 
         private readonly DispatcherTimer debounceTimer = new DispatcherTimer();
 
@@ -69,6 +76,10 @@ namespace HastPiControl.Models
         private DispatcherTimer timer;
 
         private readonly Device defaultDevice;
+
+        private readonly Maker makerChannel;
+
+        private readonly AdafruitIO adafruitIo;
 
         /// <summary>Initializes a new instance of the <see cref="PiFaceDigital2ViewModel" /> class.</summary>
         public PiFaceDigital2ViewModel()
@@ -93,6 +104,15 @@ namespace HastPiControl.Models
 
             this.SetupAutoRemoteHttpServer();
             this.defaultDevice = GetAutoRemoteLocalDevice();
+            if (!string.IsNullOrWhiteSpace(makerKey))
+            {
+                this.makerChannel = new Maker(makerKey);
+            }
+            if (!string.IsNullOrWhiteSpace(aioKey))
+            {
+                this.adafruitIo = new AdafruitIO { Data = new Data { Value = "-1" } };
+                AdafruitIOExtensions.Key = aioKey;
+            }
         }
 
         /// <summary>Gets or sets the inputs.</summary>
@@ -182,6 +202,8 @@ namespace HastPiControl.Models
             var newUri = resource.GetString("AutoRemoteNotificationUri");
             this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
             autoRemotePassword = resource.GetString("AutoRemotePassword");
+            makerKey = resource.GetString("IFTTTMakerSecretKey");
+            aioKey = resource.GetString("AdafruitIoKey");
         }
 
         private void DebounceTimerOnTick(object sender, object o)
@@ -232,10 +254,12 @@ namespace HastPiControl.Models
 
         private void SendStatus(Device device = null)
         {
-            if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
+            if (string.IsNullOrWhiteSpace(this.autoRemoteUri) && this.makerChannel == null)
             {
                 return;
             }
+
+            // Debounce signals so we don't spam AutoRemote/IFTTT Maker
             var sw = this.minimumIntervalStopwatch;
             if (sw.IsRunning && sw.ElapsedMilliseconds < MinimumInterval)
             {
@@ -244,14 +268,34 @@ namespace HastPiControl.Models
             sw.Restart();
 
             var state = "Closed";
+            this.adafruitIo.Data.Value = "0";
             if (this.garageDoor.IsOpen)
             {
+                this.adafruitIo.Data.Value = "100";
                 state = "Open";
             }
             if (this.garageDoor.IsPartiallyOpen)
             {
+                this.adafruitIo.Data.Value = "5";
                 state = "Partially Open";
             }
+
+            // Send to IFTTT Maker Channel
+            var eventName = "garage_door_" + state.ToLowerInvariant().Replace(' ', '_');
+            this.makerChannel?.SendEvent(eventName);
+
+            // Send to Adafruit IO
+            if (!string.IsNullOrWhiteSpace(aioKey))
+            {
+                this.adafruitIo.CreateData("garage-door");
+            }
+
+            // Send to AutoRemote
+            if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
+            {
+                return;
+            }
+
             var m = new Message { message = state + "=:=GarageDoor" };
             m.Send(device ?? this.defaultDevice);
         }

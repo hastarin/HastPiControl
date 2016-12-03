@@ -11,8 +11,8 @@
     <AssemblyName>HastPiControl</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
-    <TargetPlatformVersion>10.0.10586.0</TargetPlatformVersion>
-    <TargetPlatformMinVersion>10.0.10586.0</TargetPlatformMinVersion>
+    <TargetPlatformVersion>10.0.14393.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
     <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
     <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
     <FileAlignment>512</FileAlignment>
@@ -93,10 +93,18 @@
     <Content Include="ApplicationInsights.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Adafruit\v1\adafruit.io.v1.json" />
     <None Include="project.json" />
     <PRIResource Include="Strings\en-US\Resources.resw" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Adafruit\v1\AdafruitIO.cs" />
+    <Compile Include="Adafruit\v1\AdafruitIOExtensions.cs" />
+    <Compile Include="Adafruit\v1\AdafruitIOExtensions.Key.cs" />
+    <Compile Include="Adafruit\v1\IAdafruitIO.cs" />
+    <Compile Include="Adafruit\v1\Models\Data.cs" />
+    <Compile Include="Adafruit\v1\Models\Feed.cs" />
+    <Compile Include="Adafruit\v1\Models\Group.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
@@ -112,6 +120,7 @@
     <Compile Include="AutoRemote\Devices\Device.cs" />
     <Compile Include="AutoRemote\Devices\DeviceAdditionalProperties.cs" />
     <Compile Include="GarageDoorService.cs" />
+    <Compile Include="IFTTT\Maker.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>
@@ -151,7 +160,12 @@
       <Project>{211e28d3-0458-4767-b5d2-104e668760ae}</Project>
       <Name>com.hastarin.GarageDoor</Name>
     </ProjectReference>
+    <ProjectReference Include="..\Hastarin.Devices.MCP23S17\Hastarin.Devices.MCP23S17.csproj">
+      <Project>{f77a9925-6129-40ec-9c00-7293eedcad9b}</Project>
+      <Name>Hastarin.Devices.MCP23S17</Name>
+    </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>
