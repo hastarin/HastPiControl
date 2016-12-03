@@ -2,7 +2,7 @@
 <Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Resources">
-      <UniqueIdentifier>44a656a3-5e53-4126-ae94-0a8d41bd5200</UniqueIdentifier>
+      <UniqueIdentifier>e6664239-631f-4069-8f3d-0108a348c0fb</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
   </ItemGroup>
@@ -11,11 +11,11 @@
     <ClCompile Include="AllJoynBusObjectManager.cpp" />
     <ClCompile Include="AllJoynHelpers.cpp" />
     <ClCompile Include="GarageDoorConsumer.cpp" />
+    <ClCompile Include="GarageDoorLegacySignals.cpp" />
     <ClCompile Include="GarageDoorProducer.cpp" />
     <ClCompile Include="GarageDoorServiceEventAdapter.cpp" />
     <ClCompile Include="GarageDoorServiceEventArgs.cpp" />
     <ClCompile Include="GarageDoorSignals.cpp" />
-    <ClCompile Include="GarageDoorWatcher.cpp" />
     <ClCompile Include="TypeConversionHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -24,13 +24,13 @@
     <ClInclude Include="AllJoynHelpers.h" />
     <ClInclude Include="GarageDoorConsumer.h" />
     <ClInclude Include="GarageDoorEventArgs.h" />
+    <ClInclude Include="GarageDoorLegacySignals.h" />
     <ClInclude Include="GarageDoorMethodResults.h" />
     <ClInclude Include="GarageDoorProducer.h" />
     <ClInclude Include="GarageDoorServiceEventAdapter.h" />
     <ClInclude Include="GarageDoorServiceEventArgs.h" />
     <ClInclude Include="GarageDoorSignals.h" />
     <ClInclude Include="GarageDoorStructures.h" />
-    <ClInclude Include="GarageDoorWatcher.h" />
     <ClInclude Include="IGarageDoorService.h" />
     <ClInclude Include="TypeConversionHelpers.h" />
   </ItemGroup>

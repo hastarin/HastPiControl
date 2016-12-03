@@ -11,13 +11,14 @@
     <AssemblyName>HastPiControl</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
-    <TargetPlatformVersion>10.0.14393.0</TargetPlatformVersion>
+    <TargetPlatformVersion>10.0.10586.0</TargetPlatformVersion>
     <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
     <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
     <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <PackageCertificateKeyFile>HastPiControl_TemporaryKey.pfx</PackageCertificateKeyFile>
+    <PackageCertificateThumbprint>85ED545E14887C2E67C066ECCF43D6DF2F42FB21</PackageCertificateThumbprint>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
     <DebugSymbols>true</DebugSymbols>
@@ -157,7 +158,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\com.hastarin.GarageDoor\com.hastarin.GarageDoor.vcxproj">
-      <Project>{211e28d3-0458-4767-b5d2-104e668760ae}</Project>
+      <Project>{999d6207-28e4-4238-8e68-170b65b893e7}</Project>
       <Name>com.hastarin.GarageDoor</Name>
     </ProjectReference>
     <ProjectReference Include="..\Hastarin.Devices.MCP23S17\Hastarin.Devices.MCP23S17.csproj">

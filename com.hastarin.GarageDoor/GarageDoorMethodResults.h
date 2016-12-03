@@ -144,6 +144,7 @@ public:
         void set(_In_ int32 value) { m_status = value; }
     }
 
+    // "Is TRUE if the door is open."
     property bool IsOpen
     {
         bool get() { return m_value; }
@@ -184,6 +185,7 @@ public:
         void set(_In_ int32 value) { m_status = value; }
     }
 
+    // "Is TRUE if the door is only partially open for air flow."
     property bool IsPartiallyOpen
     {
         bool get() { return m_value; }

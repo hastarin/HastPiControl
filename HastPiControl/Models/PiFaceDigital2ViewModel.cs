@@ -231,20 +231,20 @@ namespace HastPiControl.Models
             await DispatcherHelper.RunAsync(() => this.ProcessMessage(m, device));
         }
 
-        private void ProcessMessage(Message m, Device device)
+        private async Task ProcessMessage(Message m, Device device)
         {
             switch (m.message.ToLowerInvariant())
             {
                 case "open":
-                    this.garageDoor.Open();
+                    await this.garageDoor.Open();
                     break;
                 case "partialopen":
                 case "partial":
                 case "openpartial":
-                    this.garageDoor.PartialOpen();
+                    await this.garageDoor.PartialOpen();
                     break;
                 case "close":
-                    this.garageDoor.Close();
+                    await this.garageDoor.Close();
                     break;
                 default:
                     this.SendStatus(device);
@@ -287,7 +287,14 @@ namespace HastPiControl.Models
             // Send to Adafruit IO
             if (!string.IsNullOrWhiteSpace(aioKey))
             {
-                this.adafruitIo.CreateData("garage-door");
+                try
+                {
+                    this.adafruitIo.CreateData("garage-door");
+                }
+                catch (Microsoft.Rest.HttpOperationException e)
+                {
+                    Debug.WriteLine("Damn");
+                }
             }
 
             // Send to AutoRemote

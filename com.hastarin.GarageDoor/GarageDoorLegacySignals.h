@@ -12,20 +12,21 @@
 
 namespace com { namespace hastarin { namespace GarageDoor {
 
-ref class GarageDoorSignals;
+ref class GarageDoorLegacySignals;
 
-public interface class IGarageDoorSignals
+public interface class IGarageDoorLegacySignals
 {
 };
 
-public ref class GarageDoorSignals sealed : [Windows::Foundation::Metadata::Default] IGarageDoorSignals
+public ref class GarageDoorLegacySignals sealed : [Windows::Foundation::Metadata::Default] IGarageDoorLegacySignals
 {
 public:
 internal:
-    void Initialize(_In_ ISignalEmitter^ emitter);
+    void Initialize(_In_ alljoyn_busobject busObject, _In_ alljoyn_sessionid sessionId);
 
 private:
-    ISignalEmitter^ m_emitter;
+    alljoyn_busobject m_busObject;
+    alljoyn_sessionid m_sessionId;
 
 
 };

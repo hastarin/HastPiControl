@@ -14,29 +14,37 @@ namespace com { namespace hastarin { namespace GarageDoor {
 
 public interface class IGarageDoorConsumer
 {
-    event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionLostEventArgs^>^ SessionLost;
-    event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberAddedEventArgs^>^ SessionMemberAdded;
-    event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberRemovedEventArgs^>^ SessionMemberRemoved;
     event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Platform::Object^>^ IsOpenChanged;
     event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Platform::Object^>^ IsPartiallyOpenChanged;
 };
 
-public ref class GarageDoorConsumer sealed  : [Windows::Foundation::Metadata::Default] IGarageDoorConsumer
+public ref class GarageDoorConsumer sealed  : [Windows::Foundation::Metadata::Default] IGarageDoorConsumer, ISignalEmitter
 {
 public:
     GarageDoorConsumer(Windows::Devices::AllJoyn::AllJoynBusAttachment^ busAttachment);
     virtual ~GarageDoorConsumer();
 
-    // Join the AllJoyn session specified by sessionName.
+    // Create a consumer from a device Id asynchronously.
     //
-    // This will usually be called after the unique name of a producer has been reported
-    // in the Added callback on the Watcher.
-    static Windows::Foundation::IAsyncOperation<GarageDoorJoinSessionResult^>^ JoinSessionAsync(_In_ Windows::Devices::AllJoyn::AllJoynServiceInfo^ serviceInfo, _Inout_ GarageDoorWatcher^ watcher);
+    // This is usually called to create a consumer after the unique name of a producer has been reported
+    // in the Added callback on the DeviceWatcher.
+    static Windows::Foundation::IAsyncOperation<GarageDoorConsumer^>^ FromIdAsync(_In_ Platform::String^ deviceId);
 
+    // Create a consumer from a device Id asynchronously with the provided bus attachment.
+    //
+    // This is usually called to create a consumer after the unique name of a producer has been reported
+    // in the Added callback on the DeviceWatcher.
+    static Windows::Foundation::IAsyncOperation<GarageDoorConsumer^>^ FromIdAsync(_In_ Platform::String^ deviceId, _In_ Windows::Devices::AllJoyn::AllJoynBusAttachment^ busAttachment);
+
+    int32 GarageDoorConsumer::Initialize(_In_ Windows::Devices::AllJoyn::AllJoynServiceInfo^ serviceInfo);
+
+    // "Opens the door if it's closed."
     // Call the Open method
     Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ bool interfaceMemberPartialOpen);
+    // "Close the door if it's open."
     // Call the Close method
     Windows::Foundation::IAsyncOperation<GarageDoorCloseResult^>^ CloseAsync();
+    // "Will trigger the push button on the garage door."
     // Call the PushButton method
     Windows::Foundation::IAsyncOperation<GarageDoorPushButtonResult^>^ PushButtonAsync();
 
@@ -61,7 +69,8 @@ public:
             _IsOpenChanged(sender, args);
         } 
     }
-    
+
+    // "Is TRUE if the door is open."
     // Get the value of the IsOpen property.
     Windows::Foundation::IAsyncOperation<GarageDoorGetIsOpenResult^>^ GetIsOpenAsync();
 
@@ -86,7 +95,8 @@ public:
             _IsPartiallyOpenChanged(sender, args);
         } 
     }
-    
+
+    // "Is TRUE if the door is only partially open for air flow."
     // Get the value of the IsPartiallyOpen property.
     Windows::Foundation::IAsyncOperation<GarageDoorGetIsPartiallyOpenResult^>^ GetIsPartiallyOpenAsync();
 
@@ -97,90 +107,36 @@ public:
         GarageDoorSignals^ get() { return m_signals; }
     }
 
-    // This event will fire whenever the consumer loses the session that it is a member of.
-    virtual event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionLostEventArgs^>^ SessionLost 
-    { 
-        Windows::Foundation::EventRegistrationToken add(Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionLostEventArgs^>^ handler) 
-        { 
-            return _SessionLost += ref new Windows::Foundation::EventHandler<Platform::Object^>
-            ([handler](Platform::Object^ sender, Platform::Object^ args)
-            {
-                handler->Invoke(safe_cast<GarageDoorConsumer^>(sender), safe_cast<Windows::Devices::AllJoyn::AllJoynSessionLostEventArgs^>(args));
-            }, Platform::CallbackContext::Same);
-        } 
-        void remove(Windows::Foundation::EventRegistrationToken token) 
-        { 
-            _SessionLost -= token; 
-        } 
-    internal: 
-        void raise(GarageDoorConsumer^ sender, Windows::Devices::AllJoyn::AllJoynSessionLostEventArgs^ args) 
-        { 
-            _SessionLost(sender, args);
-        } 
+    // Used to get the name of the interface this consumer implements.
+    static property Platform::String^ InterfaceName
+    {
+        Platform::String^ get() { return AllJoynHelpers::MultibyteToPlatformString(m_interfaceName); }
     }
 
-    // This event will fire whenever a member joins the session.
-    virtual event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberAddedEventArgs^>^ SessionMemberAdded 
-    { 
-        Windows::Foundation::EventRegistrationToken add(Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberAddedEventArgs^>^ handler) 
-        { 
-            return _SessionMemberAdded += ref new Windows::Foundation::EventHandler<Platform::Object^>
-            ([handler](Platform::Object^ sender, Platform::Object^ args)
-            {
-                handler->Invoke(safe_cast<GarageDoorConsumer^>(sender), safe_cast<Windows::Devices::AllJoyn::AllJoynSessionMemberAddedEventArgs^>(args));
-            }, Platform::CallbackContext::Same);
-        } 
-        void remove(Windows::Foundation::EventRegistrationToken token) 
-        { 
-            _SessionMemberAdded -= token; 
-        } 
-    internal: 
-        void raise(GarageDoorConsumer^ sender, Windows::Devices::AllJoyn::AllJoynSessionMemberAddedEventArgs^ args) 
-        { 
-            _SessionMemberAdded(sender, args);
-        } 
+    virtual property Windows::Devices::AllJoyn::AllJoynBusObject^ BusObject
+    {
+        Windows::Devices::AllJoyn::AllJoynBusObject^ get() { return m_busObject; }
     }
 
-    // This event will fire whenever a member leaves the session.
-    virtual event Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberRemovedEventArgs^>^ SessionMemberRemoved 
-    { 
-        Windows::Foundation::EventRegistrationToken add(Windows::Foundation::TypedEventHandler<GarageDoorConsumer^, Windows::Devices::AllJoyn::AllJoynSessionMemberRemovedEventArgs^>^ handler) 
-        { 
-            return _SessionMemberRemoved += ref new Windows::Foundation::EventHandler<Platform::Object^>
-            ([handler](Platform::Object^ sender, Platform::Object^ args)
-            {
-                handler->Invoke(safe_cast<GarageDoorConsumer^>(sender), safe_cast<Windows::Devices::AllJoyn::AllJoynSessionMemberRemovedEventArgs^>(args));
-            }, Platform::CallbackContext::Same);
-        } 
-        void remove(Windows::Foundation::EventRegistrationToken token) 
-        { 
-            _SessionMemberRemoved -= token; 
-        } 
-    internal: 
-        void raise(GarageDoorConsumer^ sender, Windows::Devices::AllJoyn::AllJoynSessionMemberRemovedEventArgs^ args) 
-        { 
-            _SessionMemberRemoved(sender, args);
-        } 
+    virtual property Windows::Devices::AllJoyn::AllJoynSession^ Session
+    {
+        Windows::Devices::AllJoyn::AllJoynSession^ get() { return m_session; }
     }
 
 internal:
     // Consumers do not support property get.
-    QStatus OnPropertyGet(_In_ PCSTR interfaceName, _In_ PCSTR propertyName, _Inout_ alljoyn_msgarg val) 
-    { 
-        UNREFERENCED_PARAMETER(interfaceName); UNREFERENCED_PARAMETER(propertyName); UNREFERENCED_PARAMETER(val); 
-        return ER_NOT_IMPLEMENTED; 
-    }
-
-    // Consumers do not support property set.
-    QStatus OnPropertySet(_In_ PCSTR interfaceName, _In_ PCSTR propertyName, _In_ alljoyn_msgarg val) 
-    { 
+    QStatus OnPropertyGet(_In_ PCSTR interfaceName, _In_ PCSTR propertyName, _Inout_ alljoyn_msgarg val)
+    {
         UNREFERENCED_PARAMETER(interfaceName); UNREFERENCED_PARAMETER(propertyName); UNREFERENCED_PARAMETER(val);
         return ER_NOT_IMPLEMENTED;
     }
 
-    void OnSessionLost(_In_ alljoyn_sessionid sessionId, _In_ alljoyn_sessionlostreason reason);
-    void OnSessionMemberAdded(_In_ alljoyn_sessionid sessionId, _In_ PCSTR uniqueName);
-    void OnSessionMemberRemoved(_In_ alljoyn_sessionid sessionId, _In_ PCSTR uniqueName);
+    // Consumers do not support property set.
+    QStatus OnPropertySet(_In_ PCSTR interfaceName, _In_ PCSTR propertyName, _In_ alljoyn_msgarg val)
+    {
+        UNREFERENCED_PARAMETER(interfaceName); UNREFERENCED_PARAMETER(propertyName); UNREFERENCED_PARAMETER(val);
+        return ER_NOT_IMPLEMENTED;
+    }
 
     void OnPropertyChanged(_In_ alljoyn_proxybusobject obj, _In_ PCSTR interfaceName, _In_ const alljoyn_msgarg changed, _In_ const alljoyn_msgarg invalidated);
 
@@ -196,23 +152,6 @@ internal:
         void set(alljoyn_proxybusobject value) { m_proxyBusObject = value; }
     }
 
-    property alljoyn_busobject BusObject
-    {
-        alljoyn_busobject get() { return m_busObject; }
-        void set(alljoyn_busobject value) { m_busObject = value; }
-    }
-    
-    property alljoyn_sessionlistener SessionListener
-    {
-        alljoyn_sessionlistener get() { return m_sessionListener; }
-        void set(alljoyn_sessionlistener value) { m_sessionListener = value; }
-    }
-
-    property alljoyn_sessionid SessionId
-    {
-        alljoyn_sessionid get() { return m_sessionId; }
-    }
-    
 private:
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _SessionLost;
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _SessionMemberAdded;
@@ -220,20 +159,19 @@ private:
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _IsOpenChanged;
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _IsPartiallyOpenChanged;
 
-    int32 JoinSession(_In_ Windows::Devices::AllJoyn::AllJoynServiceInfo^ serviceInfo);
-
     // Register a callback function to handle incoming signals.
     QStatus AddSignalHandler(_In_ alljoyn_busattachment busAttachment, _In_ alljoyn_interfacedescription interfaceDescription, _In_ PCSTR methodName, _In_ alljoyn_messagereceiver_signalhandler_ptr handler);
 
-    
+
     Windows::Devices::AllJoyn::AllJoynBusAttachment^ m_busAttachment;
+    Windows::Devices::AllJoyn::AllJoynBusObject^ m_busObject;
+    Windows::Devices::AllJoyn::AllJoynSession^ m_session;
     GarageDoorSignals^ m_signals;
     Platform::String^ m_ServiceObjectPath;
 
     alljoyn_proxybusobject m_proxyBusObject;
-    alljoyn_busobject m_busObject;
     alljoyn_sessionlistener m_sessionListener;
-    alljoyn_sessionid m_sessionId;
+    alljoyn_busobject m_nativeBusObject;
     alljoyn_busattachment m_nativeBusAttachment;
 
     // Used to pass a pointer to this class to callbacks
@@ -243,6 +181,9 @@ private:
     // handlers, but the current AllJoyn C API does not allow passing a context to these
     // callbacks.
     static std::map<alljoyn_interfacedescription, Platform::WeakReference*> SourceInterfaces;
+
+    // The name of the interface this consumer implements.
+    static PCSTR m_interfaceName;
 };
 
 } } } 

@@ -18,59 +18,38 @@ using namespace Windows::Devices::AllJoyn;
 using namespace com::hastarin::GarageDoor;
 
 std::map<alljoyn_interfacedescription, WeakReference*> GarageDoorConsumer::SourceInterfaces;
+PCSTR GarageDoorConsumer::m_interfaceName = "com.hastarin.GarageDoor";
 
 GarageDoorConsumer::GarageDoorConsumer(AllJoynBusAttachment^ busAttachment)
     : m_busAttachment(busAttachment),
     m_proxyBusObject(nullptr),
-    m_busObject(nullptr),
-    m_sessionListener(nullptr),
-    m_sessionId(0)
+    m_busObject(nullptr)
 {
     m_weak = new WeakReference(this);
     m_signals = ref new GarageDoorSignals();
     m_nativeBusAttachment = AllJoynHelpers::GetInternalBusAttachment(m_busAttachment);
+
+    GUID result;
+    HRESULT hr = CoCreateGuid(&result);
+
+    if (FAILED(hr))
+    {
+        throw ref new Exception(hr);
+    }
+
+    // The consumer needs a bus object to share signals, and its object path must be unique in
+    // case multiple consumers are created using the same bus attachment.
+    Guid gd(result);
+    ServiceObjectPath = gd.ToString();
 }
 
 GarageDoorConsumer::~GarageDoorConsumer()
 {
-    AllJoynBusObjectManager::ReleaseBusObject(m_nativeBusAttachment, AllJoynHelpers::PlatformToMultibyteString(ServiceObjectPath).data());
-    if (SessionListener != nullptr)
-    {
-        alljoyn_busattachment_setsessionlistener(m_nativeBusAttachment, m_sessionId, nullptr);
-        alljoyn_sessionlistener_destroy(SessionListener);
-    }
     if (nullptr != ProxyBusObject)
     {
         alljoyn_proxybusobject_destroy(ProxyBusObject);
     }
     delete m_weak;
-}
-
-void GarageDoorConsumer::OnSessionLost(_In_ alljoyn_sessionid sessionId, _In_ alljoyn_sessionlostreason reason)
-{
-    if (sessionId == m_sessionId)
-    {
-        AllJoynSessionLostEventArgs^ args = ref new AllJoynSessionLostEventArgs(static_cast<AllJoynSessionLostReason>(reason));
-        SessionLost(this, args);
-    }
-}
-
-void GarageDoorConsumer::OnSessionMemberAdded(_In_ alljoyn_sessionid sessionId, _In_ PCSTR uniqueName)
-{
-    if (sessionId == m_sessionId)
-    {
-        auto args = ref new AllJoynSessionMemberAddedEventArgs(AllJoynHelpers::MultibyteToPlatformString(uniqueName));
-        SessionMemberAdded(this, args);
-    }
-}
-
-void GarageDoorConsumer::OnSessionMemberRemoved(_In_ alljoyn_sessionid sessionId, _In_ PCSTR uniqueName)
-{
-    if (sessionId == m_sessionId)
-    {
-        auto args = ref new AllJoynSessionMemberRemovedEventArgs(AllJoynHelpers::MultibyteToPlatformString(uniqueName));
-        SessionMemberRemoved(this, args);
-    }
 }
 
 QStatus GarageDoorConsumer::AddSignalHandler(_In_ alljoyn_busattachment busAttachment, _In_ alljoyn_interfacedescription interfaceDescription, _In_ PCSTR methodName, _In_ alljoyn_messagereceiver_signalhandler_ptr handler)
@@ -84,14 +63,53 @@ QStatus GarageDoorConsumer::AddSignalHandler(_In_ alljoyn_busattachment busAttac
     return alljoyn_busattachment_registersignalhandler(busAttachment, handler, member, NULL);
 }
 
-IAsyncOperation<GarageDoorJoinSessionResult^>^ GarageDoorConsumer::JoinSessionAsync(
-    _In_ AllJoynServiceInfo^ serviceInfo, _Inout_ GarageDoorWatcher^ watcher)
+IAsyncOperation<GarageDoorConsumer^>^ GarageDoorConsumer::FromIdAsync(_In_ Platform::String^ deviceId)
 {
-    return create_async([serviceInfo, watcher]() -> GarageDoorJoinSessionResult^
+    return GarageDoorConsumer::FromIdAsync(deviceId, AllJoynBusAttachment::GetDefault());
+}
+
+IAsyncOperation<GarageDoorConsumer^>^ GarageDoorConsumer::FromIdAsync(_In_ Platform::String^ deviceId, _In_ AllJoynBusAttachment^ busAttachment)
+{
+    return create_async([deviceId, busAttachment]() -> GarageDoorConsumer^
     {
-        auto result = ref new GarageDoorJoinSessionResult();
-        result->Consumer = ref new GarageDoorConsumer(watcher->BusAttachment);
-        result->Status = result->Consumer->JoinSession(serviceInfo);
+        GarageDoorConsumer^ result;
+        create_task(AllJoynServiceInfo::FromIdAsync(deviceId)).then([busAttachment, &result](AllJoynServiceInfo^ serviceInfo)
+        {
+            if (serviceInfo != nullptr)
+            {
+                int32 status = AllJoynStatus::Ok;
+                if (busAttachment->State == AllJoynBusAttachmentState::Disconnected)
+                {
+                    event connectedEvent;
+                    auto token = busAttachment->StateChanged += ref new TypedEventHandler<AllJoynBusAttachment^, AllJoynBusAttachmentStateChangedEventArgs^>([&connectedEvent](AllJoynBusAttachment^, AllJoynBusAttachmentStateChangedEventArgs^ arg)
+                    {
+                        if (arg->State == AllJoynBusAttachmentState::Connected)
+                        {
+                            connectedEvent.set();
+                        }
+                    });
+
+                    status = AllJoynHelpers::CreateInterfaces(busAttachment, c_GarageDoorIntrospectionXml);
+                    if (status == AllJoynStatus::Ok)
+                    {
+                        busAttachment->Connect();
+                        connectedEvent.wait();
+                    }
+                    busAttachment->StateChanged -= token;
+                }
+
+                if (status == AllJoynStatus::Ok)
+                {
+                    auto consumer = ref new GarageDoorConsumer(busAttachment);
+                    status = consumer->Initialize(serviceInfo);
+                    if (status == AllJoynStatus::Ok)
+                    {
+                        result = consumer;
+                    }
+                }
+            }
+        }).wait();
+
         return result;
     });
 }
@@ -101,22 +119,18 @@ IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorConsumer::OpenAsync(_In_ bool 
     return create_async([this, interfaceMemberPartialOpen]() -> GarageDoorOpenResult^
     {
         auto result = ref new GarageDoorOpenResult();
-        
+
         alljoyn_message message = alljoyn_message_create(m_nativeBusAttachment);
         size_t argCount = 1;
         alljoyn_msgarg inputs = alljoyn_msgarg_array_create(argCount);
 
         QStatus status = ER_OK;
-        if (ER_OK == status)
-        {
-            status = static_cast<QStatus>(TypeConversionHelpers::SetAllJoynMessageArg(alljoyn_msgarg_array_element(inputs, 0), "b", interfaceMemberPartialOpen));
-        }
-	
+        status = static_cast<QStatus>(TypeConversionHelpers::SetAllJoynMessageArg(alljoyn_msgarg_array_element(inputs, 0), "b", interfaceMemberPartialOpen));
         if (ER_OK == status)
         {
             status = alljoyn_proxybusobject_methodcall(
                 ProxyBusObject,
-                "com.hastarin.GarageDoor",
+                m_interfaceName,
                 "Open",
                 inputs,
                 argCount,
@@ -125,7 +139,7 @@ IAsyncOperation<GarageDoorOpenResult^>^ GarageDoorConsumer::OpenAsync(_In_ bool 
                 0);
         }
         result->Status = static_cast<int>(status);
-        
+
         alljoyn_message_destroy(message);
         alljoyn_msgarg_destroy(inputs);
 
@@ -137,7 +151,7 @@ IAsyncOperation<GarageDoorCloseResult^>^ GarageDoorConsumer::CloseAsync()
     return create_async([this]() -> GarageDoorCloseResult^
     {
         auto result = ref new GarageDoorCloseResult();
-        
+
         alljoyn_message message = alljoyn_message_create(m_nativeBusAttachment);
         size_t argCount = 0;
         alljoyn_msgarg inputs = alljoyn_msgarg_array_create(argCount);
@@ -147,7 +161,7 @@ IAsyncOperation<GarageDoorCloseResult^>^ GarageDoorConsumer::CloseAsync()
         {
             status = alljoyn_proxybusobject_methodcall(
                 ProxyBusObject,
-                "com.hastarin.GarageDoor",
+                m_interfaceName,
                 "Close",
                 inputs,
                 argCount,
@@ -156,7 +170,7 @@ IAsyncOperation<GarageDoorCloseResult^>^ GarageDoorConsumer::CloseAsync()
                 0);
         }
         result->Status = static_cast<int>(status);
-        
+
         alljoyn_message_destroy(message);
         alljoyn_msgarg_destroy(inputs);
 
@@ -168,7 +182,7 @@ IAsyncOperation<GarageDoorPushButtonResult^>^ GarageDoorConsumer::PushButtonAsyn
     return create_async([this]() -> GarageDoorPushButtonResult^
     {
         auto result = ref new GarageDoorPushButtonResult();
-        
+
         alljoyn_message message = alljoyn_message_create(m_nativeBusAttachment);
         size_t argCount = 0;
         alljoyn_msgarg inputs = alljoyn_msgarg_array_create(argCount);
@@ -178,7 +192,7 @@ IAsyncOperation<GarageDoorPushButtonResult^>^ GarageDoorConsumer::PushButtonAsyn
         {
             status = alljoyn_proxybusobject_methodcall(
                 ProxyBusObject,
-                "com.hastarin.GarageDoor",
+                m_interfaceName,
                 "PushButton",
                 inputs,
                 argCount,
@@ -187,7 +201,7 @@ IAsyncOperation<GarageDoorPushButtonResult^>^ GarageDoorConsumer::PushButtonAsyn
                 0);
         }
         result->Status = static_cast<int>(status);
-        
+
         alljoyn_message_destroy(message);
         alljoyn_msgarg_destroy(inputs);
 
@@ -200,10 +214,10 @@ IAsyncOperation<GarageDoorGetIsOpenResult^>^ GarageDoorConsumer::GetIsOpenAsync(
     return create_async([this]() -> GarageDoorGetIsOpenResult^
     {
         PropertyGetContext<bool> getContext;
-        
+
         alljoyn_proxybusobject_getpropertyasync(
             ProxyBusObject,
-            "com.hastarin.GarageDoor",
+            m_interfaceName,
             "IsOpen",
             [](QStatus status, alljoyn_proxybusobject obj, const alljoyn_msgarg value, void* context)
             {
@@ -237,10 +251,10 @@ IAsyncOperation<GarageDoorGetIsPartiallyOpenResult^>^ GarageDoorConsumer::GetIsP
     return create_async([this]() -> GarageDoorGetIsPartiallyOpenResult^
     {
         PropertyGetContext<bool> getContext;
-        
+
         alljoyn_proxybusobject_getpropertyasync(
             ProxyBusObject,
-            "com.hastarin.GarageDoor",
+            m_interfaceName,
             "IsPartiallyOpen",
             [](QStatus status, alljoyn_proxybusobject obj, const alljoyn_msgarg value, void* context)
             {
@@ -307,39 +321,31 @@ void GarageDoorConsumer::OnPropertyChanged(_In_ alljoyn_proxybusobject obj, _In_
     }
 }
 
-int32 GarageDoorConsumer::JoinSession(_In_ AllJoynServiceInfo^ serviceInfo)
+int32 GarageDoorConsumer::Initialize(_In_ AllJoynServiceInfo^ serviceInfo)
 {
-    alljoyn_sessionlistener_callbacks callbacks =
-    {
-        AllJoynHelpers::SessionLostHandler<GarageDoorConsumer>,
-        AllJoynHelpers::SessionMemberAddedHandler<GarageDoorConsumer>,
-        AllJoynHelpers::SessionMemberRemovedHandler<GarageDoorConsumer>
-    };
-
-    alljoyn_busattachment_enableconcurrentcallbacks(AllJoynHelpers::GetInternalBusAttachment(m_busAttachment));
-
-    SessionListener = alljoyn_sessionlistener_create(&callbacks, m_weak);
-    alljoyn_sessionopts sessionOpts = alljoyn_sessionopts_create(ALLJOYN_TRAFFIC_TYPE_MESSAGES, true, ALLJOYN_PROXIMITY_ANY, ALLJOYN_TRANSPORT_ANY);
-
     std::vector<char> sessionNameUtf8 = AllJoynHelpers::PlatformToMultibyteString(serviceInfo->UniqueName);
-    RETURN_IF_QSTATUS_ERROR(alljoyn_busattachment_joinsession(
-        m_nativeBusAttachment,
-        &sessionNameUtf8[0],
-        serviceInfo->SessionPort,
-        SessionListener,
-        &m_sessionId,
-        sessionOpts));
-    alljoyn_sessionopts_destroy(sessionOpts);
 
     ServiceObjectPath = serviceInfo->ObjectPath;
     std::vector<char> objectPath = AllJoynHelpers::PlatformToMultibyteString(ServiceObjectPath);
+
+    RETURN_IF_QSTATUS_ERROR(AllJoynHelpers::CreateInterfaces(m_busAttachment, c_GarageDoorIntrospectionXml));
+
+    m_session = create_task(AllJoynSession::GetFromServiceInfoAsync(serviceInfo, m_busAttachment)).get();
+    if (nullptr == m_session)
+    {
+        return AllJoynStatus::Fail;
+    }
+    else if (m_session->Status != AllJoynStatus::Ok)
+    {
+        return m_session->Status;
+    }
 
     if (objectPath.empty())
     {
         return AllJoynStatus::Fail;
     }
 
-    ProxyBusObject = alljoyn_proxybusobject_create(m_nativeBusAttachment, &sessionNameUtf8[0], &objectPath[0], m_sessionId);
+    ProxyBusObject = alljoyn_proxybusobject_create(m_nativeBusAttachment, &sessionNameUtf8[0], &objectPath[0], m_session->Id);
     if (nullptr == ProxyBusObject)
     {
         return AllJoynStatus::Fail;
@@ -349,25 +355,28 @@ int32 GarageDoorConsumer::JoinSession(_In_ AllJoynServiceInfo^ serviceInfo)
 
     RETURN_IF_QSTATUS_ERROR(alljoyn_proxybusobject_registerpropertieschangedlistener(
         ProxyBusObject,
-        "com.hastarin.GarageDoor",
+        m_interfaceName,
         propertyNames,
         _countof(propertyNames),
-        AllJoynHelpers::PropertyChangedHandler<GarageDoorConsumer>, 
+        AllJoynHelpers::PropertyChangedHandler<GarageDoorConsumer>,
         m_weak));
 
 
-    alljoyn_interfacedescription description = alljoyn_busattachment_getinterface(m_nativeBusAttachment, "com.hastarin.GarageDoor");
+    alljoyn_interfacedescription description = alljoyn_busattachment_getinterface(m_nativeBusAttachment, m_interfaceName);
     if (nullptr == description)
     {
         return AllJoynStatus::Fail;
     }
 
-    RETURN_IF_QSTATUS_ERROR(AllJoynBusObjectManager::GetBusObject(m_nativeBusAttachment, AllJoynHelpers::PlatformToMultibyteString(ServiceObjectPath).data(), &m_busObject));
-   
-    if (!AllJoynBusObjectManager::BusObjectIsRegistered(m_nativeBusAttachment, m_busObject))
+    m_busObject = ref new Windows::Devices::AllJoyn::AllJoynBusObject(ServiceObjectPath, m_busAttachment);
+    m_nativeBusObject = AllJoynHelpers::GetInternalBusObject(m_busObject);
+
+    QStatus status = alljoyn_busobject_addinterface(m_nativeBusObject, description);
+    if ((status != ER_OK) && (status != ER_BUS_IFACE_ALREADY_EXISTS))
     {
-        RETURN_IF_QSTATUS_ERROR(alljoyn_busobject_addinterface(BusObject, description));
+        return status;
     }
+
 
 
     SourceInterfaces[description] = m_weak;
@@ -376,7 +385,7 @@ int32 GarageDoorConsumer::JoinSession(_In_ AllJoynServiceInfo^ serviceInfo)
     bool authenticationMechanismsContainsNone = m_busAttachment->AuthenticationMechanisms->IndexOf(AllJoynAuthenticationMechanism::None, &noneMechanismIndex);
     QCC_BOOL interfaceIsSecure = alljoyn_interfacedescription_issecure(description);
 
-    // If the current set of AuthenticationMechanisms supports authentication, 
+    // If the current set of AuthenticationMechanisms supports authentication,
     // determine whether to secure the connection.
     if (AllJoynHelpers::CanSecure(m_busAttachment->AuthenticationMechanisms))
     {
@@ -385,11 +394,11 @@ int32 GarageDoorConsumer::JoinSession(_In_ AllJoynServiceInfo^ serviceInfo)
         if (!authenticationMechanismsContainsNone || interfaceIsSecure)
         {
             RETURN_IF_QSTATUS_ERROR(alljoyn_proxybusobject_secureconnection(ProxyBusObject, QCC_FALSE));
-            RETURN_IF_QSTATUS_ERROR(AllJoynBusObjectManager::TryRegisterBusObject(m_nativeBusAttachment, BusObject, true));
+            m_busObject->Start();
         }
         else
         {
-            RETURN_IF_QSTATUS_ERROR(AllJoynBusObjectManager::TryRegisterBusObject(m_nativeBusAttachment, BusObject, false));
+            m_busObject->Start();
         }
     }
     else
@@ -402,13 +411,13 @@ int32 GarageDoorConsumer::JoinSession(_In_ AllJoynServiceInfo^ serviceInfo)
         }
         else
         {
-            RETURN_IF_QSTATUS_ERROR(AllJoynBusObjectManager::TryRegisterBusObject(m_nativeBusAttachment, BusObject, false));
+            m_busObject->Start();
         }
     }
 
     RETURN_IF_QSTATUS_ERROR(alljoyn_proxybusobject_addinterface(ProxyBusObject, description));
-    
-    m_signals->Initialize(BusObject, m_sessionId);
+
+    m_signals->Initialize(this);
 
     return AllJoynStatus::Ok;
 }

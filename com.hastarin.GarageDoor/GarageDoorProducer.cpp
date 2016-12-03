@@ -29,7 +29,7 @@ GarageDoorProducer::GarageDoorProducer(AllJoynBusAttachment^ busAttachment)
 {
     m_weak = new WeakReference(this);
     ServiceObjectPath = ref new String(L"/Service");
-    m_signals = ref new GarageDoorSignals();
+    m_signals = ref new GarageDoorLegacySignals();
     m_busAttachmentStateChangedToken.Value = 0;
 }
 

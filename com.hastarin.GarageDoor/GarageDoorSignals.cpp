@@ -16,10 +16,8 @@ using namespace Windows::Devices::AllJoyn;
 using namespace Windows::Foundation;
 using namespace com::hastarin::GarageDoor;
 
-void GarageDoorSignals::Initialize(_In_ alljoyn_busobject busObject, _In_ alljoyn_sessionid sessionId)
+void GarageDoorSignals::Initialize(_In_ ISignalEmitter^ emitter)
 {
-    m_busObject = busObject;
-    m_sessionId = sessionId;
-
+    m_emitter = emitter;
 }
 

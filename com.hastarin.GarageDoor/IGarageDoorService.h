@@ -15,20 +15,25 @@ namespace com { namespace hastarin { namespace GarageDoor {
 public interface class IGarageDoorService
 {
 public:
+    // "Opens the door if it's closed."
     // Implement this function to handle calls to the Open method.
     Windows::Foundation::IAsyncOperation<GarageDoorOpenResult^>^ OpenAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info , _In_ bool interfaceMemberPartialOpen);
 
+    // "Close the door if it's open."
     // Implement this function to handle calls to the Close method.
     Windows::Foundation::IAsyncOperation<GarageDoorCloseResult^>^ CloseAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info );
 
+    // "Will trigger the push button on the garage door."
     // Implement this function to handle calls to the PushButton method.
     Windows::Foundation::IAsyncOperation<GarageDoorPushButtonResult^>^ PushButtonAsync(_In_ Windows::Devices::AllJoyn::AllJoynMessageInfo^ info );
 
+    // "Is TRUE if the door is open."
     // Implement this function to handle requests for the value of the IsOpen property.
     //
     // Currently, info will always be null, because no information is available about the requestor.
     Windows::Foundation::IAsyncOperation<GarageDoorGetIsOpenResult^>^ GetIsOpenAsync(Windows::Devices::AllJoyn::AllJoynMessageInfo^ info);
 
+    // "Is TRUE if the door is only partially open for air flow."
     // Implement this function to handle requests for the value of the IsPartiallyOpen property.
     //
     // Currently, info will always be null, because no information is available about the requestor.

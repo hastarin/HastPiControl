@@ -8,26 +8,18 @@
 //   For more information, see: http://go.microsoft.com/fwlink/?LinkID=623246
 // </auto-generated>
 //-----------------------------------------------------------------------------
-#pragma once
+#include "pch.h"
 
-namespace com { namespace hastarin { namespace GarageDoor {
+using namespace Microsoft::WRL;
+using namespace Platform;
+using namespace Windows::Devices::AllJoyn;
+using namespace Windows::Foundation;
+using namespace com::hastarin::GarageDoor;
 
-ref class GarageDoorSignals;
-
-public interface class IGarageDoorSignals
+void GarageDoorLegacySignals::Initialize(_In_ alljoyn_busobject busObject, _In_ alljoyn_sessionid sessionId)
 {
-};
+    m_busObject = busObject;
+    m_sessionId = sessionId;
 
-public ref class GarageDoorSignals sealed : [Windows::Foundation::Metadata::Default] IGarageDoorSignals
-{
-public:
-internal:
-    void Initialize(_In_ ISignalEmitter^ emitter);
+}
 
-private:
-    ISignalEmitter^ m_emitter;
-
-
-};
-
-} } } 

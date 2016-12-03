@@ -66,26 +66,26 @@ namespace HastPiControl.Models
         public bool IsClosed => this.openInput.IsOn == false && this.IsPartiallyOpen == false;
 
         /// <summary>Close the garage door</summary>
-        public async void Close()
+        public async Task Close()
         {
             while (this.openInput.IsOn || this.partialOpenInput.IsOn)
             {
-                this.PushButton();
+                await this.PushButton();
                 await Task.Delay(15000);
             }
         }
 
         /// <summary>Opens the garage door</summary>
-        public void Open()
+        public async Task Open()
         {
             if (this.IsPartiallyOpen || this.IsClosed)
             {
-                this.PushButton();
+                await this.PushButton();
             }
         }
 
         /// <summary>Partially opens the garage door</summary>
-        public async void PartialOpen()
+        public async Task PartialOpen()
         {
             var open = this.openInput;
             var partialOpen = this.partialOpenInput;
@@ -112,7 +112,7 @@ namespace HastPiControl.Models
         }
 
         /// <summary>Triggers the push button of the garage door</summary>
-        public async void PushButton()
+        public async Task PushButton()
         {
             this.pushButtonRelay.IsOn = true;
             await Task.Delay(500);

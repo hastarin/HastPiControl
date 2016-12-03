@@ -38,9 +38,9 @@ public:
     }
 
     // Used to send signals or register functions to handle received signals.
-    property GarageDoorSignals^ Signals
+    property GarageDoorLegacySignals^ Signals
     {
-        GarageDoorSignals^ get() { return m_signals; }
+        GarageDoorLegacySignals^ get() { return m_signals; }
     }
     
     // This event will fire whenever this producer is stopped.
@@ -202,8 +202,11 @@ private:
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _SessionMemberAdded;
     virtual event Windows::Foundation::EventHandler<Platform::Object^>^ _SessionMemberRemoved;
 
+    // "Opens the door if it's closed."
     static void CallOpenHandler(_Inout_ alljoyn_busobject busObject, _In_ alljoyn_message message);
+    // "Close the door if it's open."
     static void CallCloseHandler(_Inout_ alljoyn_busobject busObject, _In_ alljoyn_message message);
+    // "Will trigger the push button on the garage door."
     static void CallPushButtonHandler(_Inout_ alljoyn_busobject busObject, _In_ alljoyn_message message);
       
     // Register a callback function to handle methods.
@@ -215,7 +218,7 @@ private:
     
     Windows::Devices::AllJoyn::AllJoynBusAttachment^ m_busAttachment;
     Windows::Foundation::EventRegistrationToken m_busAttachmentStateChangedToken;
-    GarageDoorSignals^ m_signals;
+    GarageDoorLegacySignals^ m_signals;
     IGarageDoorService^ m_serviceInterface;
     Platform::String^ m_ServiceObjectPath;
 
