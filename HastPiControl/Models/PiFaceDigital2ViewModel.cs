@@ -291,9 +291,8 @@ namespace HastPiControl.Models
                 {
                     this.adafruitIo.CreateData("garage-door");
                 }
-                catch (Microsoft.Rest.HttpOperationException e)
+                catch (Microsoft.Rest.HttpOperationException)
                 {
-                    Debug.WriteLine("Damn");
                 }
             }
 

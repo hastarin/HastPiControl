@@ -45,11 +45,11 @@ namespace HastPiControl
                     {
                         if (!partialOpen)
                         {
-                            Task.Factory.StartNew(() => this.GarageDoor.PushButton()).GetAwaiter().GetResult();
+                            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.PushButton());
                         }
                         else
                         {
-                            Task.Factory.StartNew(() => this.GarageDoor.PartialOpen()).GetAwaiter().GetResult();
+                            this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.PartialOpen());
                         }
                         return GarageDoorOpenResult.CreateSuccessResult();
                     });
@@ -64,7 +64,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorCloseResult>(
                 () =>
                     {
-                        Task.Factory.StartNew(() => this.GarageDoor.Close()).GetAwaiter().GetResult();
+                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.Close());
                         return GarageDoorCloseResult.CreateSuccessResult();
                     });
             task.Start();
@@ -78,7 +78,7 @@ namespace HastPiControl
             var task = new Task<GarageDoorPushButtonResult>(
                 () =>
                     {
-                        Task.Factory.StartNew(() => this.GarageDoor.PushButton()).GetAwaiter().GetResult();
+                        this.dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => this.GarageDoor.PushButton());
                         return GarageDoorPushButtonResult.CreateSuccessResult();
                     });
             task.Start();
