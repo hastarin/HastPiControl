@@ -45,7 +45,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<IList<Feed>> GetFeedsAsync(this IAdafruitIO operations, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetFeedsWithHttpMessagesAsync(null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetFeedsWithHttpMessagesAsync(CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -73,7 +73,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Feed> CreateFeedAsync(this IAdafruitIO operations, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.CreateFeedWithHttpMessagesAsync(null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.CreateFeedWithHttpMessagesAsync(CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -109,7 +109,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Feed> GetFeedAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetFeedWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetFeedWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -143,7 +143,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Feed> ReplaceFeedAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.ReplaceFeedWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.ReplaceFeedWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -177,7 +177,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Feed> UpdateFeedAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.UpdateFeedWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.UpdateFeedWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -211,7 +211,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<string> DestroyFeedAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.DestroyFeedWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.DestroyFeedWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -263,7 +263,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<IList<Data>> AllFeedDataAsync(this IAdafruitIO operations, string feedId, string startTime = default(string), string endTime = default(string), int? limit = default(int?), CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.AllFeedDataWithHttpMessagesAsync(feedId, startTime, endTime, limit, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.AllFeedDataWithHttpMessagesAsync(feedId, startTime, endTime, limit, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -297,7 +297,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> CreateDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.CreateDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.CreateDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -331,7 +331,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> SendDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.SendDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.SendDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -365,7 +365,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> ReceiveDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.ReceiveDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.ReceiveDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -399,7 +399,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> PreviousDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.PreviousDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.PreviousDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -433,7 +433,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> NextDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.NextDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.NextDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -467,7 +467,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> LastDataAsync(this IAdafruitIO operations, string feedId, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.LastDataWithHttpMessagesAsync(feedId, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.LastDataWithHttpMessagesAsync(feedId, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -507,7 +507,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> GetDataAsync(this IAdafruitIO operations, string feedId, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetDataWithHttpMessagesAsync(feedId, id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetDataWithHttpMessagesAsync(feedId, id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -547,7 +547,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> ReplaceDataAsync(this IAdafruitIO operations, string feedId, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.ReplaceDataWithHttpMessagesAsync(feedId, id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.ReplaceDataWithHttpMessagesAsync(feedId, id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -587,7 +587,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Data> UpdateDataAsync(this IAdafruitIO operations, string feedId, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.UpdateDataWithHttpMessagesAsync(feedId, id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.UpdateDataWithHttpMessagesAsync(feedId, id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -627,7 +627,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<string> DestroyDataAsync(this IAdafruitIO operations, string feedId, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.DestroyDataWithHttpMessagesAsync(feedId, id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.DestroyDataWithHttpMessagesAsync(feedId, id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -661,7 +661,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<IList<Group>> AllGroupsAsync(this IAdafruitIO operations, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.AllGroupsWithHttpMessagesAsync(null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.AllGroupsWithHttpMessagesAsync(CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -689,7 +689,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Group> CreateGroupAsync(this IAdafruitIO operations, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.CreateGroupWithHttpMessagesAsync(null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.CreateGroupWithHttpMessagesAsync(CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -723,7 +723,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Group> GetGroupAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetGroupWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetGroupWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -757,7 +757,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Group> ReplaceGroupAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.ReplaceGroupWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.ReplaceGroupWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -791,7 +791,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<Group> UpdateGroupAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.UpdateGroupWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.UpdateGroupWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -825,7 +825,7 @@ namespace HastPiControl.Adafruit
             /// </param>
             public static async Task<string> DestroyGroupAsync(this IAdafruitIO operations, string id, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.DestroyGroupWithHttpMessagesAsync(id, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.DestroyGroupWithHttpMessagesAsync(id, CustomHeaders, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
