@@ -231,20 +231,20 @@ namespace HastPiControl.Models
             await DispatcherHelper.RunAsync(() => this.ProcessMessage(m, device));
         }
 
-        private async Task ProcessMessage(Message m, Device device)
+        private void ProcessMessage(Message m, Device device)
         {
             switch (m.message.ToLowerInvariant())
             {
                 case "open":
-                    await this.garageDoor.Open();
+                    this.garageDoor.Open();
                     break;
                 case "partialopen":
                 case "partial":
                 case "openpartial":
-                    await this.garageDoor.PartialOpen();
+                    this.garageDoor.PartialOpen();
                     break;
                 case "close":
-                    await this.garageDoor.Close();
+                    this.garageDoor.Close();
                     break;
                 default:
                     this.SendStatus(device);
