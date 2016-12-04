@@ -14,6 +14,7 @@ namespace HastPiControl.Models
     using System.ComponentModel;
     using System.Diagnostics;
     using System.Linq;
+    using System.Reflection;
     using System.Threading.Tasks;
 
     using Windows.ApplicationModel.Resources;
@@ -50,6 +51,8 @@ namespace HastPiControl.Models
         public static string GarageDoorPushButtonRelay = "GarageDoorPushButton";
 
         private static GarageDoorProducer doorProducer;
+
+        private static string aioFeedName;
 
         private static string aioKey;
 
@@ -108,10 +111,17 @@ namespace HastPiControl.Models
             {
                 this.makerChannel = new Maker(makerKey);
             }
-            if (!string.IsNullOrWhiteSpace(aioKey))
+            try
             {
-                this.adafruitIo = new AdafruitIO { Data = new Data { Value = "-1" } };
-                AdafruitIOExtensions.Key = aioKey;
+                if (!string.IsNullOrWhiteSpace(aioKey))
+                {
+                    this.adafruitIo = new AdafruitIO { Data = new Data { Value = "-1" } };
+                    AdafruitIOExtensions.Key = aioKey;
+                }
+            }
+            catch (AmbiguousMatchException)
+            {
+                Debug.WriteLine("You may need to downgrade Microsoft.Rest.ClientRuntime to 2.3.2   See https://github.com/Azure/autorest/issues/1542 for more information.");
             }
         }
 
@@ -164,7 +174,6 @@ namespace HastPiControl.Models
             this.timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
             this.timer.Tick += this.TimerOnTick;
             this.timer.Start();
-            this.SendStatus();
         }
 
         private void SetupAutoRemoteHttpServer()
@@ -204,6 +213,7 @@ namespace HastPiControl.Models
             autoRemotePassword = resource.GetString("AutoRemotePassword");
             makerKey = resource.GetString("IFTTTMakerSecretKey");
             aioKey = resource.GetString("AdafruitIoKey");
+            aioFeedName = resource.GetString("AdafruitIoFeedName");
         }
 
         private void DebounceTimerOnTick(object sender, object o)
@@ -246,10 +256,8 @@ namespace HastPiControl.Models
                 case "close":
                     this.garageDoor.Close();
                     break;
-                default:
-                    this.SendStatus(device);
-                    break;
             }
+            this.SendStatus(device);
         }
 
         private void SendStatus(Device device = null)
@@ -268,15 +276,15 @@ namespace HastPiControl.Models
             sw.Restart();
 
             var state = "Closed";
-            this.adafruitIo.Data.Value = "0";
+            if (this.adafruitIo != null) this.adafruitIo.Data.Value = "0";
             if (this.garageDoor.IsOpen)
             {
-                this.adafruitIo.Data.Value = "100";
+                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "100";
                 state = "Open";
             }
             if (this.garageDoor.IsPartiallyOpen)
             {
-                this.adafruitIo.Data.Value = "5";
+                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "5";
                 state = "Partially Open";
             }
 
@@ -285,11 +293,11 @@ namespace HastPiControl.Models
             this.makerChannel?.SendEvent(eventName);
 
             // Send to Adafruit IO
-            if (!string.IsNullOrWhiteSpace(aioKey))
+            if (this.adafruitIo != null)
             {
                 try
                 {
-                    this.adafruitIo.CreateData("garage-door");
+                    this.adafruitIo.CreateData(aioFeedName);
                 }
                 catch (Microsoft.Rest.HttpOperationException)
                 {

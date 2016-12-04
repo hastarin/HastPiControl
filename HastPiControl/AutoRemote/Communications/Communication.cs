@@ -75,8 +75,11 @@ namespace HastPiControl.AutoRemote.Communications
             //send this as json object to localip
             Boolean success = await this.SendContent(url, content);
 
-            //if it fails
-            if (!success)
+            if (success)
+            {
+                Debug.WriteLine("Sent through local ip");
+            }
+            else
             {
                 Debug.WriteLine("Couldn't send through local network. Sending through GCM");
                 url = "https://autoremotejoaomgcd.appspot.com/" + this.GetGCMEndpoint();
@@ -97,18 +100,7 @@ namespace HastPiControl.AutoRemote.Communications
 
                 var contentGCM = new FormUrlEncodedContent(postData);
                 success = await this.SendContent(url, contentGCM);
-                if (success)
-                {
-                    Debug.WriteLine("Sent through GCM");
-                }
-                else
-                {
-                    Debug.WriteLine("Couldn't send");
-                }
-            }
-            else
-            {
-                Debug.WriteLine("Sent through local ip");
+                Debug.WriteLine(success ? "Sent through GCM" : "Couldn't send");
             }
         }
 
