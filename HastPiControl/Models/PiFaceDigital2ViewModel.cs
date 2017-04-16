@@ -2,45 +2,40 @@
 // Assembly         : HastPiControl
 // Author           : Jon Benson
 // Created          : 14-11-2015
-// 
+//
 // Last Modified By : Jon Benson
-// Last Modified On : 26-03-2016
+// Last Modified On : 16-04-2017
 // ***********************************************************************
 
 namespace HastPiControl.Models
 {
-    using System;
-    using System.Collections.ObjectModel;
-    using System.ComponentModel;
-    using System.Diagnostics;
-    using System.Linq;
-    using System.Reflection;
-    using System.Threading.Tasks;
-
-    using Windows.ApplicationModel.Resources;
-    using Windows.Devices.AllJoyn;
-    using Windows.Networking;
-    using Windows.UI.Xaml;
-
     using com.hastarin.GarageDoor;
-
     using GalaSoft.MvvmLight;
     using GalaSoft.MvvmLight.Threading;
-
     using Hastarin.Devices;
-
     using HastPiControl.Adafruit;
     using HastPiControl.Adafruit.Models;
     using HastPiControl.AutoRemote;
     using HastPiControl.AutoRemote.Communications;
     using HastPiControl.AutoRemote.Devices;
     using HastPiControl.IFTTT;
+    using System;
+    using System.Collections.ObjectModel;
+    using System.ComponentModel;
+    using System.Linq;
+    using System.Reflection;
+    using System.Text;
+    using System.Threading.Tasks;
+    using uPLibrary.Networking.M2Mqtt;
+    using uPLibrary.Networking.M2Mqtt.Messages;
+    using Windows.ApplicationModel.Resources;
+    using Windows.Devices.AllJoyn;
+    using Windows.Networking;
+    using Windows.UI.Xaml;
 
     /// <summary>Class PiFaceDigital2ViewModel.</summary>
     public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
     {
-        private const long MinimumInterval = 2000;
-
         /// <summary>Name to use for the input for the main door reed switch</summary>
         public static string GarageDoorOpen = "GarageDoorOpen";
 
@@ -50,21 +45,28 @@ namespace HastPiControl.Models
         /// <summary>Name to use for the output controlling the push button relay</summary>
         public static string GarageDoorPushButtonRelay = "GarageDoorPushButton";
 
-        private static GarageDoorProducer doorProducer;
+        /// <summary>MQTT Topic for publishing the status of this app.</summary>
+        /// <remarks>Eg. Connected/Published/Disconnected/Error</remarks>
+        private const string GarageDoorStatusTopic = "garage/door/status";
 
-        private static string aioFeedName;
+        private const long MinimumInterval = 2000;
+        /// <summary>MQTT Topics used for controlling the garage door.</summary>
+        private static readonly string[] MqttTopics = { "garage/door/switch", "garage/door/method" };
 
-        private static string aioKey;
-
+        private static string adafruitIoFeedName;
+        private static string adafruitIoKey;
         private static string autoRemotePassword;
-
+        private static GarageDoorProducer doorProducer;
         private static string makerKey;
-
+        private static string mqttPassword;
+        private static string mqttUserName;
+        private readonly AdafruitIO adafruitIo;
         private readonly DispatcherTimer debounceTimer = new DispatcherTimer();
-
+        private readonly Device defaultDevice;
         private readonly GarageDoor garageDoor;
-
-        private readonly Stopwatch minimumIntervalStopwatch = new Stopwatch();
+        private readonly Maker makerChannel;
+        private readonly MqttClient mqttClient;
+        private readonly DispatcherTimer mqttDispatcherTimer;
 
         private AutoRemoteHttpServer autoRemoteHttpServer;
 
@@ -77,12 +79,6 @@ namespace HastPiControl.Models
         private ObservableCollection<GpioPinViewModel> outputs = new ObservableCollection<GpioPinViewModel>();
 
         private DispatcherTimer timer;
-
-        private readonly Device defaultDevice;
-
-        private readonly Maker makerChannel;
-
-        private readonly AdafruitIO adafruitIo;
 
         /// <summary>Initializes a new instance of the <see cref="PiFaceDigital2ViewModel" /> class.</summary>
         public PiFaceDigital2ViewModel()
@@ -99,8 +95,7 @@ namespace HastPiControl.Models
             this.debounceTimer.Interval = TimeSpan.FromMilliseconds(MinimumInterval);
             this.debounceTimer.Tick += this.DebounceTimerOnTick;
 
-            this.HookEventsAndSetupInputOutputNames();
-
+            this.SetupInputOutputNames();
             this.garageDoor = new GarageDoor(this);
 
             this.SetupAllJoynBusAttachmentAndProducer();
@@ -113,16 +108,48 @@ namespace HastPiControl.Models
             }
             try
             {
-                if (!string.IsNullOrWhiteSpace(aioKey))
+                if (!string.IsNullOrWhiteSpace(adafruitIoKey))
                 {
                     this.adafruitIo = new AdafruitIO { Data = new Data { Value = "-1" } };
-                    AdafruitIOExtensions.Key = aioKey;
+                    AdafruitIOExtensions.Key = adafruitIoKey;
                 }
             }
             catch (AmbiguousMatchException)
             {
-                Debug.WriteLine("You may need to downgrade Microsoft.Rest.ClientRuntime to 2.3.2   See https://github.com/Azure/autorest/issues/1542 for more information.");
+                Console.WriteLine("You may need to downgrade Microsoft.Rest.ClientRuntime to 2.3.2   See https://github.com/Azure/autorest/issues/1542 for more information.");
             }
+
+            // NOTE: These resources come from Strings/en-US/Resources.resw which you'll need to provide/edit to match
+            var resource = ResourceLoader.GetForCurrentView();
+            var mqttHost = resource.GetString("MqttHost");
+            var mqttPort = resource.GetString("MqttPort");
+
+            if (!string.IsNullOrWhiteSpace(mqttHost))
+            {
+                // ReSharper disable once ExceptionNotDocumented
+                this.mqttDispatcherTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+                this.mqttDispatcherTimer.Tick += this.MqttDispatcherTimerOnTick;
+
+                // NOTE: I use TLS with MQTT   If you don't you will need to change this
+                this.mqttClient = new MqttClient(mqttHost, int.Parse(mqttPort), true, MqttSslProtocols.TLSv1_2);
+                this.mqttClient.ConnectionClosed += this.OnMqttConnectionClosed;
+
+                // NOTE: Only uncomment the following if you're sure your MQTT server is secure as it allows control of the door
+                // this.mqttClient.MqttMsgPublishReceived += this.OnMqttPublishedMessage;
+                this.ConnectMqttClient();
+            }
+
+            this.HookEvents();
+            this.debounceTimer.Start();
+        }
+
+        /// <summary>
+        ///     Allows an object to try to free resources and perform other cleanup operations before it is reclaimed by
+        ///     garbage collection.
+        /// </summary>
+        ~PiFaceDigital2ViewModel()
+        {
+            this.Dispose(false);
         }
 
         /// <summary>Gets or sets the inputs.</summary>
@@ -176,50 +203,85 @@ namespace HastPiControl.Models
             this.timer.Start();
         }
 
-        private void SetupAutoRemoteHttpServer()
+        /// <summary>Updates the values from the Pi.</summary>
+        internal void UpdateValuesFromPi()
         {
-            this.autoRemoteHttpServer = new AutoRemoteHttpServer(ConstantsThatShouldBeVariables.PORT);
-            this.autoRemoteHttpServer.RequestReceived += this.AutoRemoteHttpServerOnRequestReceived;
-            this.autoRemoteHttpServer.Start();
-            RegisterMyselfOnOtherDevice();
+            var result = MCP23S17.ReadRegister16(); // do something with the values
+            for (int i = 0; i < 8; i++)
+            {
+                var bitIsOn = (result & (1 << i)) != 0;
+                this.Inputs.First(input => input.Id == i).IsOn = !bitIsOn;
+                bitIsOn = (result & (1 << (i + 8))) != 0;
+                this.Outputs.First(input => input.Id == i).IsOn = bitIsOn;
+            }
         }
 
-        private void HookEventsAndSetupInputOutputNames()
+        // ReSharper disable once PublicMembersMustHaveComments
+        protected virtual void Dispose(bool disposing)
         {
-            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
-            doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
-            doorOpenSwitch.Name = GarageDoorOpen;
-            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
-            doorPartialOpenSwitch.Name = GarageDoorPartialOpen;
-            doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
-            var pb = this.Outputs.First(o => o.Id == 0);
-            pb.Name = GarageDoorPushButtonRelay;
+            if (this.disposed)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                // free other managed objects that implement
+                // IDisposable only
+                this.autoRemoteHttpServer.Stop();
+                this.mqttClient.MqttMsgPublishReceived -= this.OnMqttPublishedMessage;
+                this.mqttClient.ConnectionClosed -= this.OnMqttConnectionClosed;
+                if (this.mqttClient.IsConnected)
+                {
+                    this.mqttClient.Publish(GarageDoorStatusTopic, Encoding.UTF8.GetBytes("Disconnected " + DateTime.Now), MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, true);
+                    this.mqttClient.Disconnect();
+                }
+            }
+
+            // release any unmanaged objects
+            // set the object references to null
+            doorProducer.Stop();
+            doorProducer = null;
+
+            this.disposed = true;
         }
 
-        private void SetupAllJoynBusAttachmentAndProducer()
-        {
-            var attachment = new AllJoynBusAttachment();
-            attachment.AboutData.DefaultDescription = "PiFaceDigital 2 Garage Door controller";
-            attachment.AboutData.ModelNumber = "PiFaceDigital2";
-            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this.garageDoor) };
-            doorProducer.Start();
-        }
-
-        private void LoadResourceStrings()
+        private static Device GetAutoRemoteLocalDevice()
         {
             var resource = ResourceLoader.GetForCurrentView();
-            var newUri = resource.GetString("AutoRemoteNotificationUri");
-            this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
-            autoRemotePassword = resource.GetString("AutoRemotePassword");
-            makerKey = resource.GetString("IFTTTMakerSecretKey");
-            aioKey = resource.GetString("AdafruitIoKey");
-            aioFeedName = resource.GetString("AdafruitIoFeedName");
+            //Instantiate Device (device to send stuff to). In a proper app this device should have been created with a received RequestSendRegistration
+            String personalKey = resource.GetString("AutoRemoteKey");
+            //see how to get it here http://joaoapps.com/autoremote/personal
+
+            var localip = resource.GetString("LocalDeviceIp");
+            var device = new Device { localip = localip, port = "1817", key = personalKey };
+            return device;
         }
 
-        private void DebounceTimerOnTick(object sender, object o)
+        private static void RegisterMyselfOnOtherDevice()
         {
-            ((DispatcherTimer)sender).Stop();
-            this.SendStatus();
+            var device = GetAutoRemoteLocalDevice();
+
+            //Instantiate Registration Request
+            RequestSendRegistration request = new RequestSendRegistration();
+
+            //Send registration request
+            request.Send(device);
+        }
+
+        private void AdafruitIoCreateData()
+        {
+            // Send to Adafruit IO
+            if (this.adafruitIo != null)
+            {
+                try
+                {
+                    this.adafruitIo.CreateData(adafruitIoFeedName);
+                }
+                catch (Microsoft.Rest.HttpOperationException)
+                {
+                }
+            }
         }
 
         private async void AutoRemoteHttpServerOnRequestReceived(Request request, HostName hostName)
@@ -229,7 +291,7 @@ namespace HastPiControl.Models
                 return;
             }
             var m = request as Message;
-            var device = new Device {key = request.sender, localip = hostName.RawName};
+            var device = new Device { key = request.sender, localip = hostName.RawName };
             if (m == null || m.password != autoRemotePassword)
             {
                 if (Device.KnownDeviceList.Contains(request.sender))
@@ -241,77 +303,174 @@ namespace HastPiControl.Models
             await DispatcherHelper.RunAsync(() => this.ProcessMessage(m, device));
         }
 
-        private void ProcessMessage(Message m, Device device)
+        private void AutoRemoteSend(Device device, string state)
         {
-            switch (m.message.ToLowerInvariant())
+            // Send to AutoRemote
+            if (!string.IsNullOrWhiteSpace(this.autoRemoteUri))
             {
-                case "open":
-                    this.garageDoor.Open();
-                    break;
-                case "partialopen":
-                case "partial":
-                case "openpartial":
-                    this.garageDoor.PartialOpen();
-                    break;
-                case "close":
-                    this.garageDoor.Close();
-                    break;
+                var m = new Message { message = state + "=:=GarageDoor" };
+                m.Send(device ?? this.defaultDevice);
             }
-            this.SendStatus(device);
         }
 
-        private void SendStatus(Device device = null)
+        private void ConnectMqttClient()
         {
-            if (string.IsNullOrWhiteSpace(this.autoRemoteUri) && this.makerChannel == null)
+            try
             {
-                return;
+                this.mqttClient.Connect(
+                    mqttUserName,
+                    mqttUserName,
+                    mqttPassword,
+                    true,
+                    MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE,
+                    true,
+                    GarageDoorStatusTopic,
+                    "Error",
+                    false,
+                    60);
+                this.mqttClient.Subscribe(MqttTopics, new[] { MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE, MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE });
+                this.mqttClient.Publish(GarageDoorStatusTopic, Encoding.UTF8.GetBytes("Connected " + DateTime.Now), MqttMsgBase.QOS_LEVEL_AT_LEAST_ONCE, true);
             }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                this.mqttDispatcherTimer.Start();
+            }
+        }
 
-            // Debounce signals so we don't spam AutoRemote/IFTTT Maker
-            var sw = this.minimumIntervalStopwatch;
-            if (sw.IsRunning && sw.ElapsedMilliseconds < MinimumInterval)
-            {
-                return;
-            }
-            sw.Restart();
+        private void DebounceTimerOnTick(object sender, object o)
+        {
+            ((DispatcherTimer)sender).Stop();
+            this.SendStatus();
+        }
 
-            var state = "Closed";
-            if (this.adafruitIo != null) this.adafruitIo.Data.Value = "0";
-            if (this.garageDoor.IsOpen)
-            {
-                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "100";
-                state = "Open";
-            }
-            if (this.garageDoor.IsPartiallyOpen)
-            {
-                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "5";
-                state = "Partially Open";
-            }
+        private void HookEvents()
+        {
+            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
+            doorOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
+            doorPartialOpenSwitch.PropertyChanged += this.OnPropertyChanged;
+        }
 
+        private void IfttMakerSendEvent(string state)
+        {
             // Send to IFTTT Maker Channel
-            var eventName = "garage_door_" + state.ToLowerInvariant().Replace(' ', '_');
-            this.makerChannel?.SendEvent(eventName);
+            if (this.makerChannel != null)
+            {
+                var eventName = "garage_door_" + state.ToLowerInvariant().Replace(' ', '_');
 
-            // Send to Adafruit IO
-            if (this.adafruitIo != null)
+                this.makerChannel?.SendEvent(eventName);
+            }
+        }
+
+        private void LoadResourceStrings()
+        {
+            // NOTE: These come from Strings/en-US/Resources.resw which you'll need to provide/edit to match
+            var resource = ResourceLoader.GetForCurrentView();
+            var newUri = resource.GetString("AutoRemoteNotificationUri");
+            this.autoRemoteUri = newUri.Replace("[AUTOREMOTEKEY]", resource.GetString("AutoRemoteKey"));
+            autoRemotePassword = resource.GetString("AutoRemotePassword");
+            makerKey = resource.GetString("IFTTTMakerSecretKey");
+            adafruitIoKey = resource.GetString("AdafruitIoKey");
+            adafruitIoFeedName = resource.GetString("AdafruitIoFeedName");
+            mqttUserName = resource.GetString("MqttUserName");
+            mqttPassword = resource.GetString("MqttPassword");
+        }
+
+        private void MqttDispatcherTimerOnTick(object sender, object o)
+        {
+            this.mqttDispatcherTimer.Stop();
+            if (this.mqttClient.IsConnected)
+            {
+                this.mqttClient.Disconnect();
+            }
+            this.ConnectMqttClient();
+            if (this.mqttClient.IsConnected)
+            {
+                this.debounceTimer.Start();
+            }
+            else
+            {
+                this.mqttDispatcherTimer.Start();
+            }
+        }
+
+        private void MqttPublish(string state)
+        {
+            if (this.mqttClient?.IsConnected == true)
             {
                 try
                 {
-                    this.adafruitIo.CreateData(aioFeedName);
+                    this.mqttClient.Publish(
+                        GarageDoorStatusTopic,
+                        Encoding.UTF8.GetBytes("Publish at " + DateTime.Now),
+                        MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE,
+                        true);
+                    this.mqttClient.Publish(
+                        "garage/door/state",
+                        Encoding.UTF8.GetBytes(state),
+                        MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE,
+                        true);
+                    this.mqttClient.Publish(
+                        "garage/door/binary",
+                        this.garageDoor.IsClosed ? Encoding.UTF8.GetBytes("OFF") : Encoding.UTF8.GetBytes("ON"),
+                        MqttMsgBase.QOS_LEVEL_AT_MOST_ONCE,
+                        true);
                 }
-                catch (Microsoft.Rest.HttpOperationException)
+                catch (Exception e)
                 {
+                    Console.WriteLine(e);
+                    this.mqttDispatcherTimer.Start();
                 }
             }
+        }
 
-            // Send to AutoRemote
-            if (string.IsNullOrWhiteSpace(this.autoRemoteUri))
+        private void OnMqttConnectionClosed(object sender, EventArgs e)
+        {
+            DispatcherHelper.CheckBeginInvokeOnUI(() => this.mqttDispatcherTimer.Start());
+        }
+
+        private void OnMqttPublishedMessage(object sender, MqttMsgPublishEventArgs e)
+        {
+            if (e.Message.Length == 0)
             {
                 return;
             }
+            var message = Encoding.UTF8.GetString(e.Message).ToLowerInvariant();
+            switch (e.Topic)
+            {
+                case @"garage/door/switch":
+                    if (message == "on")
+                    {
+                        DispatcherHelper.CheckBeginInvokeOnUI(() => this.garageDoor.Open());
+                    }
+                    else if (message == "off")
+                    {
+                        DispatcherHelper.CheckBeginInvokeOnUI(() => this.garageDoor.Close());
+                    }
+                    break;
 
-            var m = new Message { message = state + "=:=GarageDoor" };
-            m.Send(device ?? this.defaultDevice);
+                case @"garage/door/method":
+                    switch (message)
+                    {
+                        case "open":
+                            DispatcherHelper.CheckBeginInvokeOnUI(() => this.garageDoor.Open());
+                            break;
+
+                        case "partialopen":
+                            DispatcherHelper.CheckBeginInvokeOnUI(() => this.garageDoor.PartialOpen());
+                            break;
+
+                        case "close":
+                            DispatcherHelper.CheckBeginInvokeOnUI(() => this.garageDoor.Close());
+                            break;
+
+                        default:
+                            DispatcherHelper.CheckBeginInvokeOnUI(() => this.SendStatus());
+                            break;
+                    }
+                    break;
+            }
         }
 
         private void OnPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -331,77 +490,98 @@ namespace HastPiControl.Models
             }
         }
 
-        private void TimerOnTick(object sender, object e)
+        private void ProcessMessage(Message m, Device device)
         {
-            this.UpdateValuesFromPi();
-        }
-
-        /// <summary>Updates the values from the Pi.</summary>
-        internal void UpdateValuesFromPi()
-        {
-            var result = MCP23S17.ReadRegister16(); // do something with the values
-            for (int i = 0; i < 8; i++)
+            switch (m.message.ToLowerInvariant())
             {
-                var bitIsOn = (result & (1 << i)) != 0;
-                this.Inputs.First(input => input.Id == i).IsOn = !bitIsOn;
-                bitIsOn = (result & (1 << (i + 8))) != 0;
-                this.Outputs.First(input => input.Id == i).IsOn = bitIsOn;
+                case "open":
+                    this.garageDoor.Open();
+                    break;
+
+                case "partialopen":
+                case "partial":
+                case "openpartial":
+                    this.garageDoor.PartialOpen();
+                    break;
+
+                case "close":
+                    this.garageDoor.Close();
+                    break;
             }
+            this.SendStatus(device);
         }
 
-        private static void RegisterMyselfOnOtherDevice()
+        private void SendStatus(Device device = null)
         {
-            var device = GetAutoRemoteLocalDevice();
-
-            //Instantiate Registration Request
-            RequestSendRegistration request = new RequestSendRegistration();
-
-            //Send registration request
-            request.Send(device);
-        }
-
-        private static Device GetAutoRemoteLocalDevice()
-        {
-            var resource = ResourceLoader.GetForCurrentView();
-            //Instantiate Device (device to send stuff to). In a proper app this device should have been created with a received RequestSendRegistration
-            String personalKey = resource.GetString("AutoRemoteKey");
-            //see how to get it here http://joaoapps.com/autoremote/personal
-
-            var localip = resource.GetString("LocalDeviceIp");
-            var device = new Device { localip = localip, port = "1817", key = personalKey };
-            return device;
-        }
-
-        /// <summary>
-        ///     Allows an object to try to free resources and perform other cleanup operations before it is reclaimed by
-        ///     garbage collection.
-        /// </summary>
-        ~PiFaceDigital2ViewModel()
-        {
-            this.Dispose(false);
-        }
-
-        // ReSharper disable once PublicMembersMustHaveComments
-        protected virtual void Dispose(bool disposing)
-        {
-            if (this.disposed)
+            if (string.IsNullOrWhiteSpace(this.autoRemoteUri) && this.makerChannel == null)
             {
                 return;
             }
 
-            if (disposing)
+            // Debounce signals so we don't spam AutoRemote/IFTTT Maker/etc
+            if (this.debounceTimer.IsEnabled)
             {
-                // free other managed objects that implement
-                // IDisposable only
-                this.autoRemoteHttpServer.Stop();
+                return;
             }
 
-            // release any unmanaged objects
-            // set the object references to null
-            doorProducer.Stop();
-            doorProducer = null;
+            var state = this.SetState();
 
-            this.disposed = true;
+            this.MqttPublish(state);
+
+            this.IfttMakerSendEvent(state);
+
+            this.AdafruitIoCreateData();
+
+            this.AutoRemoteSend(device, state);
+        }
+
+        private string SetState()
+        {
+            var state = "Closed";
+            if (this.adafruitIo != null) this.adafruitIo.Data.Value = "0";
+            if (this.garageDoor.IsOpen)
+            {
+                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "100";
+                state = "Open";
+            }
+            if (this.garageDoor.IsPartiallyOpen)
+            {
+                if (this.adafruitIo != null) this.adafruitIo.Data.Value = "5";
+                state = "Partially Open";
+            }
+            return state;
+        }
+
+        private void SetupAllJoynBusAttachmentAndProducer()
+        {
+            var attachment = new AllJoynBusAttachment();
+            attachment.AboutData.DefaultDescription = "PiFaceDigital 2 Garage Door controller";
+            attachment.AboutData.ModelNumber = "PiFaceDigital2";
+            doorProducer = new GarageDoorProducer(attachment) { Service = new GarageDoorService(this.garageDoor) };
+            doorProducer.Start();
+        }
+
+        private void SetupAutoRemoteHttpServer()
+        {
+            this.autoRemoteHttpServer = new AutoRemoteHttpServer(ConstantsThatShouldBeVariables.PORT);
+            this.autoRemoteHttpServer.RequestReceived += this.AutoRemoteHttpServerOnRequestReceived;
+            this.autoRemoteHttpServer.Start();
+            RegisterMyselfOnOtherDevice();
+        }
+
+        private void SetupInputOutputNames()
+        {
+            var doorOpenSwitch = this.Inputs.First(input => input.Id == 6);
+            doorOpenSwitch.Name = GarageDoorOpen;
+            var doorPartialOpenSwitch = this.Inputs.First(input => input.Id == 7);
+            doorPartialOpenSwitch.Name = GarageDoorPartialOpen;
+            var pb = this.Outputs.First(o => o.Id == 0);
+            pb.Name = GarageDoorPushButtonRelay;
+        }
+
+        private void TimerOnTick(object sender, object e)
+        {
+            this.UpdateValuesFromPi();
         }
     }
 }
