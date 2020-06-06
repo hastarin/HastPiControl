@@ -11,14 +11,15 @@
     <AssemblyName>HastPiControl</AssemblyName>
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
-    <TargetPlatformVersion>10.0.10586.0</TargetPlatformVersion>
-    <TargetPlatformMinVersion>10.0.10240.0</TargetPlatformMinVersion>
+    <TargetPlatformVersion>10.0.18362.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
     <EnableDotNetNativeCompatibleProfile>true</EnableDotNetNativeCompatibleProfile>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <PackageCertificateKeyFile>HastPiControl_TemporaryKey.pfx</PackageCertificateKeyFile>
     <PackageCertificateThumbprint>85ED545E14887C2E67C066ECCF43D6DF2F42FB21</PackageCertificateThumbprint>
+    <RuntimeIdentifiers>win10-arm;win10-arm-aot;win10-x86;win10-x86-aot;win10-x64;win10-x64-aot</RuntimeIdentifiers>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|ARM'">
     <DebugSymbols>true</DebugSymbols>
@@ -95,7 +96,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="Adafruit\v1\adafruit.io.v1.json" />
-    <None Include="project.json" />
     <PRIResource Include="Strings\en-US\Resources.resw" />
   </ItemGroup>
   <ItemGroup>
@@ -157,6 +157,35 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.ApplicationInsights.PersistenceChannel">
+      <Version>1.2.3</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.ApplicationInsights.WindowsApps">
+      <Version>1.1.1</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
+      <Version>6.2.10</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Rest.ClientRuntime">
+      <Version>2.3.21</Version>
+    </PackageReference>
+    <PackageReference Include="MQTTnet">
+      <Version>3.0.11</Version>
+    </PackageReference>
+    <PackageReference Include="MQTTnet.Extensions.ManagedClient">
+      <Version>3.0.11</Version>
+    </PackageReference>
+    <PackageReference Include="MvvmLight">
+      <Version>5.4.1.1</Version>
+    </PackageReference>
+    <PackageReference Include="MvvmLightLibs">
+      <Version>5.4.1.1</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>12.0.3</Version>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\com.hastarin.GarageDoor\com.hastarin.GarageDoor.vcxproj">
       <Project>{999d6207-28e4-4238-8e68-170b65b893e7}</Project>
       <Name>com.hastarin.GarageDoor</Name>
@@ -166,7 +195,6 @@
       <Name>Hastarin.Devices.MCP23S17</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>
   </PropertyGroup>

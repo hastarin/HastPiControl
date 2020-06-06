@@ -2,7 +2,7 @@
 // Assembly         : HastPiControl
 // Author           : Jon Benson
 // Created          : 20-03-2016
-// 
+//
 // Last Modified By : Jon Benson
 // Last Modified On : 26-03-2016
 // ***********************************************************************
@@ -25,6 +25,8 @@ namespace HastPiControl.Models
         private readonly PiFaceDigital2ViewModel piFaceDigital2ViewModel;
 
         private readonly GpioPinViewModel pushButtonRelay;
+
+        private string state;
 
         /// <summary>Initializes a new instance of the <see cref="GarageDoor" /> class.</summary>
         public GarageDoor(PiFaceDigital2ViewModel piFaceDigital2ViewModel)
@@ -56,8 +58,8 @@ namespace HastPiControl.Models
                 };
         }
 
-        /// <summary>Gets a value inidcating if the door is open.</summary>
-        public bool IsOpen => this.openInput.IsOn;
+        /// <summary>Gets a value indicating if the door is open.</summary>
+        public bool IsOpen => this.openInput.IsOn || this.partialOpenInput.IsOn;
 
         /// <summary>Gets a value that indicates if the door is partially open.</summary>
         public bool IsPartiallyOpen => this.partialOpenInput.IsOn;
@@ -65,22 +67,61 @@ namespace HastPiControl.Models
         /// <summary>Gets a value indicating if the door is closed.</summary>
         public bool IsClosed => this.openInput.IsOn == false && this.IsPartiallyOpen == false;
 
+        public bool IsMoving { get; set; }
+
+        public string State
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(this.state))
+                {
+                    this.state = this.IsOpen ? "open" : "closed";
+                }
+
+                return this.state;
+            }
+
+            set => this.Set(ref this.state, value);
+        }
+
         /// <summary>Close the garage door</summary>
-        public async void Close()
+        public async Task Close()
         {
             while (this.openInput.IsOn || this.partialOpenInput.IsOn)
             {
-                this.PushButton();
-                await Task.Delay(15000);
+                if (!this.IsMoving)
+                {
+                    this.State = "closing";
+                    await this.PushButton();
+                }
+            }
+
+            this.State = "closed";
+        }
+
+        public async Task Stop()
+        {
+            if (this.IsMoving)
+            {
+                this.pushButtonRelay.IsOn = true;
+                await Task.Delay(500);
+                this.pushButtonRelay.IsOn = false;
+                this.State = this.IsOpen ? "open" : "closed";
             }
         }
 
         /// <summary>Opens the garage door</summary>
-        public void Open()
+        public async Task Open()
         {
-            if (this.IsPartiallyOpen || this.IsClosed)
+            if ((this.IsPartiallyOpen || this.IsClosed) && !this.IsMoving)
             {
-                this.PushButton();
+                this.State = "opening";
+                await this.PushButton();
+            }
+
+            if (this.IsOpen)
+            {
+                this.State = "open";
             }
         }
 
@@ -95,6 +136,7 @@ namespace HastPiControl.Models
             {
                 return;
             }
+
             output.IsOn = true;
             await Task.Delay(200);
             output.IsOn = false;
@@ -105,6 +147,7 @@ namespace HastPiControl.Models
             {
                 this.piFaceDigital2ViewModel.UpdateValuesFromPi();
             }
+
             stopWatch.Stop();
             output.IsOn = true;
             await Task.Delay(500);
@@ -112,11 +155,23 @@ namespace HastPiControl.Models
         }
 
         /// <summary>Triggers the push button of the garage door</summary>
-        public async void PushButton()
+        public async Task PushButton()
         {
             this.pushButtonRelay.IsOn = true;
             await Task.Delay(500);
             this.pushButtonRelay.IsOn = false;
+
+            if (this.IsMoving)
+            {
+                this.IsMoving = false;
+            }
+            else
+            {
+                // TODO: Improve this?
+                this.IsMoving = true;
+                await Task.Delay(15000);
+                this.IsMoving = false;
+            }
         }
     }
 }

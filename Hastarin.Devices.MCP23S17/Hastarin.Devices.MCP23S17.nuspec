@@ -1,16 +1,16 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+﻿<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
   <metadata>
-    <version>$version$</version>
-    <authors>Jon Benson</authors>
-    <owners />
-    <id>$id$</id>
+    <id>Hastarin.Devices.MCP23S17</id>
+    <version>1.0.1.0</version>
     <title />
+    <authors>Jon Benson</authors>
+    <owners>Jon Benson</owners>
     <projectUrl>https://github.com/hastarin/HastPiControl</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>$description$</description>
+    <description>Driver for MCP23S17 via SPI</description>
     <dependencies>
-      <group targetFramework="uap10.0">
+      <group targetFramework=".NETCore5.0">
         <dependency id="System.Diagnostics.Debug" version="4.0.11" />
         <dependency id="System.Linq" version="4.1.0" />
         <dependency id="System.Runtime" version="4.1.0" />
@@ -19,5 +19,4 @@
       </group>
     </dependencies>
   </metadata>
-  <files />
 </package>
