@@ -189,7 +189,7 @@ namespace HastPiControl.Models
                                     .WithTopic("hass/cover/garage/availability").WithPayload("online").WithRetainFlag()
                                     .Build());
                             var configMessage = new MqttApplicationMessageBuilder().WithAtLeastOnceQoS().WithTopic("hass/cover/garage/config")
-                                .WithPayload(@"{""name"":""Garage Cover"",""uniq_id"":""hassgarage2103029"",""dev_cla"":""garage"",""avty_t"":""hass/cover/garage/availability"",""cmd_t"":""hass/cover/garage/set"",""stat_t"":""hass/cover/garage/state"",""ret"":false}")
+                                .WithPayload(@"{""name"":""Garage Door"",""uniq_id"":""hassgarage2103029"",""dev_cla"":""garage"",""avty_t"":""hass/cover/garage/availability"",""cmd_t"":""hass/cover/garage/set"",""stat_t"":""hass/cover/garage/state"",""ret"":false}")
                                 .WithRetainFlag().Build();
                             await this.mqttClient.PublishAsync(configMessage);
                             this.MqttPublish();
@@ -442,21 +442,23 @@ namespace HastPiControl.Models
 
         private void MqttPublish()
         {
-            if (this.mqttClient?.IsConnected == true)
+            if (this.mqttClient?.IsConnected != true)
             {
-                try
-                {
-                    var message = new MqttApplicationMessageBuilder().WithTopic(GarageDoorStatusTopic)
-                        .WithPayload("Publish at " + DateTime.Now).WithAtMostOnceQoS().WithRetainFlag().Build();
-                    this.mqttClient.PublishAsync(message);
-                    message = new MqttApplicationMessageBuilder().WithTopic("hass/cover/garage/state").WithPayload(this.garageDoor.State)
-                        .WithAtMostOnceQoS().WithRetainFlag().Build();
-                    this.mqttClient.PublishAsync(message);
-                }
-                catch (Exception e)
-                {
-                    Debug.WriteLine(e);
-                }
+                return;
+            }
+
+            try
+            {
+                var message = new MqttApplicationMessageBuilder().WithTopic(GarageDoorStatusTopic)
+                    .WithPayload("Publish at " + DateTime.Now).WithAtMostOnceQoS().WithRetainFlag().Build();
+                this.mqttClient.PublishAsync(message);
+                message = new MqttApplicationMessageBuilder().WithTopic("hass/cover/garage/state").WithPayload(this.garageDoor.State)
+                    .WithAtMostOnceQoS().WithRetainFlag().Build();
+                this.mqttClient.PublishAsync(message);
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e);
             }
         }
 
@@ -520,6 +522,8 @@ namespace HastPiControl.Models
             this.AdafruitIoCreateData();
 
             this.AutoRemoteSend(device, state);
+
+            this.MqttPublish();
         }
 
         private string SetState()
