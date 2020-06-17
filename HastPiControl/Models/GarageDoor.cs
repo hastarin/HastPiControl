@@ -9,15 +9,20 @@
 
 namespace HastPiControl.Models
 {
+    using System;
     using System.Diagnostics;
     using System.Linq;
     using System.Threading.Tasks;
 
     using GalaSoft.MvvmLight;
 
+    using Windows.UI.Xaml;
+
     /// <summary>Wrapper for the garage door connected to a Raspberry Pi 2</summary>
     public class GarageDoor : ViewModelBase
     {
+        private readonly DispatcherTimer moveTimer = new DispatcherTimer();
+
         private readonly GpioPinViewModel openInput;
 
         private readonly GpioPinViewModel partialOpenInput;
@@ -36,7 +41,8 @@ namespace HastPiControl.Models
                 this.piFaceDigital2ViewModel.Outputs.Single(
                     o => o.Name == PiFaceDigital2ViewModel.GarageDoorPushButtonRelay);
             this.partialOpenInput =
-                this.piFaceDigital2ViewModel.Inputs.Single(o => o.Name == PiFaceDigital2ViewModel.GarageDoorPartialOpen);
+                this.piFaceDigital2ViewModel.Inputs.Single(
+                    o => o.Name == PiFaceDigital2ViewModel.GarageDoorPartialOpen);
             this.openInput =
                 this.piFaceDigital2ViewModel.Inputs.Single(o => o.Name == PiFaceDigital2ViewModel.GarageDoorOpen);
 
@@ -56,18 +62,25 @@ namespace HastPiControl.Models
                         this.RaisePropertyChanged(() => this.IsClosed);
                     }
                 };
+
+            this.moveTimer.Interval = TimeSpan.FromSeconds(15);
+            this.moveTimer.Tick += (sender, o) =>
+                {
+                    this.IsMoving = false;
+                    this.State = this.IsOpen ? "open" : "closed";
+                };
         }
+
+        /// <summary>Gets a value indicating if the door is closed.</summary>
+        public bool IsClosed => this.openInput.IsOn == false && this.IsPartiallyOpen == false;
+
+        public bool IsMoving { get; set; }
 
         /// <summary>Gets a value indicating if the door is open.</summary>
         public bool IsOpen => this.openInput.IsOn || this.partialOpenInput.IsOn;
 
         /// <summary>Gets a value that indicates if the door is partially open.</summary>
         public bool IsPartiallyOpen => this.partialOpenInput.IsOn;
-
-        /// <summary>Gets a value indicating if the door is closed.</summary>
-        public bool IsClosed => this.openInput.IsOn == false && this.IsPartiallyOpen == false;
-
-        public bool IsMoving { get; set; }
 
         public string State
         {
@@ -87,26 +100,10 @@ namespace HastPiControl.Models
         /// <summary>Close the garage door</summary>
         public async Task Close()
         {
-            while (this.openInput.IsOn || this.partialOpenInput.IsOn)
+            if ((this.IsPartiallyOpen || this.IsOpen) && !this.IsMoving)
             {
-                if (!this.IsMoving)
-                {
-                    this.State = "closing";
-                    await this.PushButton();
-                }
-            }
-
-            this.State = "closed";
-        }
-
-        public async Task Stop()
-        {
-            if (this.IsMoving)
-            {
-                this.pushButtonRelay.IsOn = true;
-                await Task.Delay(500);
-                this.pushButtonRelay.IsOn = false;
-                this.State = this.IsOpen ? "open" : "closed";
+                this.State = "closing";
+                await this.PushButton();
             }
         }
 
@@ -117,11 +114,6 @@ namespace HastPiControl.Models
             {
                 this.State = "opening";
                 await this.PushButton();
-            }
-
-            if (this.IsOpen)
-            {
-                this.State = "open";
             }
         }
 
@@ -137,6 +129,7 @@ namespace HastPiControl.Models
                 return;
             }
 
+            this.IsMoving = true;
             output.IsOn = true;
             await Task.Delay(200);
             output.IsOn = false;
@@ -152,6 +145,7 @@ namespace HastPiControl.Models
             output.IsOn = true;
             await Task.Delay(500);
             output.IsOn = false;
+            this.IsMoving = false;
         }
 
         /// <summary>Triggers the push button of the garage door</summary>
@@ -169,9 +163,20 @@ namespace HastPiControl.Models
             {
                 // TODO: Improve this?
                 this.IsMoving = true;
-                await Task.Delay(15000);
-                this.IsMoving = false;
+                this.moveTimer.Start();
             }
+        }
+
+        public async Task Stop()
+        {
+            if (this.IsMoving)
+            {
+                this.pushButtonRelay.IsOn = true;
+                await Task.Delay(500);
+                this.pushButtonRelay.IsOn = false;
+            }
+
+            this.State = this.IsOpen ? "open" : "closed";
         }
     }
 }

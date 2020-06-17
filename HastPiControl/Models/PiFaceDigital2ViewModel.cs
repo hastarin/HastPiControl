@@ -34,16 +34,16 @@ namespace HastPiControl.Models
     using HastPiControl.IFTTT;
 
     using MQTTnet;
+    using MQTTnet.Client.Connecting;
     using MQTTnet.Client.Options;
     using MQTTnet.Diagnostics;
     using MQTTnet.Extensions.ManagedClient;
+    using MQTTnet.Server;
 
     using Windows.ApplicationModel.Resources;
     using Windows.Devices.AllJoyn;
     using Windows.Networking;
     using Windows.UI.Xaml;
-
-    using MQTTnet.Client.Connecting;
 
     /// <summary>Class PiFaceDigital2ViewModel.</summary>
     public class PiFaceDigital2ViewModel : ViewModelBase, IDisposable
@@ -159,11 +159,14 @@ namespace HastPiControl.Models
                     .WithAtLeastOnceQoS().WithRetainFlag().WithPayload("offline").Build();
 
                 // Setup and start a managed MQTT client.
+                var clientOptions = new MqttClientOptionsBuilder().WithClientId("garage-pi").WithTcpServer(mqttHost)
+                    .WithWillMessage(willMessage).WithCommunicationTimeout(TimeSpan.FromSeconds(10)).WithCleanSession()
+                    .WithNoKeepAlive() // .WithKeepAlivePeriod(TimeSpan.FromMinutes(1)) // KeepAlive is failing client side
+                    .WithCredentials(mqttUserName, mqttPassword)
+                    .WithTls(tlsOptions).Build();
                 var options = new ManagedMqttClientOptionsBuilder().WithAutoReconnectDelay(TimeSpan.FromSeconds(30))
-                    .WithClientOptions(
-                        new MqttClientOptionsBuilder().WithClientId("garage-pi").WithTcpServer(mqttHost).WithWillMessage(willMessage)
-                            .WithCleanSession().WithCredentials(mqttUserName, mqttPassword).WithTls(tlsOptions).Build())
-                    .Build();
+                    .WithPendingMessagesOverflowStrategy(MqttPendingMessagesOverflowStrategy.DropOldestQueuedMessage)
+                    .WithMaxPendingMessages(5).WithClientOptions(clientOptions).Build();
 
                 this.mqttClient = new MqttFactory().CreateManagedMqttClient();
                 MqttNetGlobalLogger.LogMessagePublished += (s, e) =>
@@ -192,14 +195,14 @@ namespace HastPiControl.Models
                                 .WithPayload(@"{""name"":""Garage Door"",""uniq_id"":""hassgarage2103029"",""dev_cla"":""garage"",""avty_t"":""hass/cover/garage/availability"",""cmd_t"":""hass/cover/garage/set"",""stat_t"":""hass/cover/garage/state"",""ret"":false}")
                                 .WithRetainFlag().Build();
                             await this.mqttClient.PublishAsync(configMessage);
-                            this.MqttPublish();
+                            await DispatcherHelper.RunAsync(() => this.debounceTimer.Start());
                         });
 
                 this.garageDoor.PropertyChanged += delegate(object sender, PropertyChangedEventArgs args)
                     {
                         if (args.PropertyName == "State")
                         {
-                            this.MqttPublish();
+                            DispatcherHelper.RunAsync(() => this.debounceTimer.Start());
                         }
                     };
                 this.mqttClient.StartAsync(options);
